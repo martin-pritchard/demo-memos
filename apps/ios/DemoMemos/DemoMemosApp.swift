@@ -9,9 +9,9 @@ import SwiftUI
 
 @main
 struct DemoMemosApp: App {
-    var body: some Scene {
-        WindowGroup {
-            Text("Hello World")
-        }
+  var body: some Scene {
+    WindowGroup {
+      Text("Hello World")
     }
+  }
 }

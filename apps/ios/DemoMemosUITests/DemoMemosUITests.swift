@@ -9,7 +9,7 @@ import XCTest
 
 final class DemoMemosUITests: XCTestCase {
 
-    override func setUpWithError() throws {
-        continueAfterFailure = false
-    }
+  override func setUpWithError() throws {
+    continueAfterFailure = false
+  }
 }
