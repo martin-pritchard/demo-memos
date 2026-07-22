@@ -95,7 +95,7 @@ final class CaptureState {
     self.levels = Array(repeating: 0, count: Self.liveBarCount)
     self.takeDuration = memo.duration
     // Level data is not part of the index, so a reopened take draws a stable
-    // stand-in derived from its id. See DECISIONS.md.
+    // stand-in derived from its id. See docs/DECISIONS.md.
     self.takeLevels = Self.placeholderLevels(seed: memo.id)
     try? player.load(url: store.fileURL(for: memo))
     player.onFinish = { [weak self] in

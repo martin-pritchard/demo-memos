@@ -1,7 +1,7 @@
 # apps/ios
 
-Stack-specific *mechanisms*. The rules they implement live in `PRINCIPLES.md`
-at the repo root — read that first for where a file goes and why.
+Stack-specific *mechanisms*. The rules they implement live in `docs/PRINCIPLES.md`
+— read that first for where a file goes and why.
 
 ## Native by default
 

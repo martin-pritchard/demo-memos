@@ -56,5 +56,5 @@ The pre-commit hook fails closed: no gitleaks, no commit. This repo is public.
 
 ## Conventions
 
-Placement rules live in `PRINCIPLES.md` — read it before creating or moving
+Placement rules live in `docs/PRINCIPLES.md` — read it before creating or moving
 files. Seam and definition-of-done rules live in the `sdlc:build-rules` skill.
