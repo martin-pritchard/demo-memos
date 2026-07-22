@@ -15,7 +15,9 @@ struct MemoListView: View {
       VStack(alignment: .leading, spacing: 0) {
         Text("Demos")
           .font(.system(size: 34, weight: .bold))
-          .padding(.top, 64)
+          // The design's 64pt is measured from the top of the screen, where its
+          // status bar is absolutely positioned. That is the safe-area inset,
+          // which SwiftUI has already applied — so nothing to add here.
           .padding(.horizontal, 20)
           .padding(.bottom, 12)
 

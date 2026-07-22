@@ -45,7 +45,9 @@ struct CaptureView: View {
     .font(.system(size: 17, weight: .medium))
     .tint(Palette.accent)
     .frame(height: 26)
-    .padding(.top, 56)
+    // The design's 56pt is measured from the top of the screen, where its
+    // status bar is absolutely positioned. That is the safe-area inset, which
+    // SwiftUI has already applied — so nothing to add here.
     .padding(.horizontal, 20)
   }
 
