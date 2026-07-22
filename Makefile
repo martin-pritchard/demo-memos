@@ -15,7 +15,9 @@ IOS_SCHEME  := DemoMemos
 #   make test-ios IOS_DESTINATION='platform=iOS Simulator,name=iPhone 16'
 IOS_DESTINATION ?= platform=iOS Simulator,name=iPhone 17
 
-.PHONY: help setup scan test test-ios test-web
+SWIFT_SRC := apps/ios/DemoMemos apps/ios/DemoMemosTests apps/ios/DemoMemosUITests
+
+.PHONY: help setup scan fmt fmt-ios fmt-web lint lint-ios lint-web test test-ios test-web
 
 help: ## Show available targets
 	@grep -E '^[a-z-]+:.*?## ' $(MAKEFILE_LIST) \
@@ -27,6 +29,24 @@ setup: ## Set up this clone (secret-scanning hook). Safe to re-run.
 scan: ## Scan the full history for secrets
 	@gitleaks git --redact --no-banner .
 
+# fmt/lint exist for CI and for a whole-repo sweep. Day to day you should never
+# need them: scripts/format-file.sh runs the same tools on every file write.
+fmt: fmt-ios fmt-web ## Format everything
+
+fmt-ios:
+	@xcrun swift-format format --in-place --recursive $(SWIFT_SRC)
+
+fmt-web:
+	@npm --prefix apps/web run format
+
+lint: lint-ios lint-web ## Lint everything (no writes)
+
+lint-ios:
+	@xcrun swift-format lint --strict --recursive $(SWIFT_SRC)
+
+lint-web:
+	@npm --prefix apps/web run lint
+
 test: test-ios test-web ## Run all tests
 
 test-ios: ## Run iOS tests
@@ -36,5 +56,8 @@ test-ios: ## Run iOS tests
 		-destination '$(IOS_DESTINATION)' \
 		-quiet
 
-test-web: ## Run web tests
-	@echo "No web stack chosen yet — see apps/web/CLAUDE.md."
+# The site has no test runner and no unit tests — adding one would be a
+# dependency nothing currently needs. A failed build is the only failure a
+# static content site can currently have, so that is what we assert.
+test-web: ## Run web tests (build must succeed)
+	@npm --prefix apps/web run build
