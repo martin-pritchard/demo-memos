@@ -21,7 +21,7 @@ struct EnhanceSlider: View {
           .font(.system(size: 15, weight: .semibold))
           .foregroundStyle(Palette.accent)
         Text("Enhance · \(Palette.toneName(value))")
-          .font(.system(size: 14, weight: .semibold))
+          .font(.subheadline.weight(.semibold))
           .foregroundStyle(Palette.accentText)
       }
       .accessibilityHidden(true)

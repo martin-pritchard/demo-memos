@@ -3,6 +3,9 @@ import SwiftUI
 /// 1a / 2a / 4a — Demos. A plain list of takes: name, when, length, newest
 /// first. Swipe a row left for Share / Delete. The New Demo pill floats over
 /// the list and stays in place when there is nothing to show yet (4a).
+///
+/// Chrome is the system's: a real large-title nav bar, a standard `List` with
+/// native swipe actions, `ShareLink`, and `ContentUnavailableView` for empty.
 struct MemoListView: View {
   @Bindable var state: MemoListState
   let onNewDemo: () -> Void
@@ -12,43 +15,26 @@ struct MemoListView: View {
     ZStack(alignment: .bottom) {
       Palette.pageBackground.ignoresSafeArea()
 
-      VStack(alignment: .leading, spacing: 0) {
-        Text("Demos")
-          .font(.system(size: 34, weight: .bold))
-          // The design's 64pt is measured from the top of the screen, where its
-          // status bar is absolutely positioned. That is the safe-area inset,
-          // which SwiftUI has already applied — so nothing to add here.
-          .padding(.horizontal, 20)
-          .padding(.bottom, 12)
-
-        if state.isEmpty {
-          emptyState
-        } else {
-          list
-        }
+      if state.isEmpty {
+        emptyState
+      } else {
+        list
       }
 
       newDemoPill
     }
+    .navigationTitle("Demos")
     .onAppear { state.load() }
-    .sheet(item: $state.shareTarget) { ShareSheet(url: $0.url) }
   }
 
   // MARK: - 4a
 
   private var emptyState: some View {
-    VStack(spacing: 8) {
-      Text("Capture your first demo")
-        .font(.system(size: 22, weight: .bold))
+    ContentUnavailableView {
+      Label("Capture your first demo", systemImage: "waveform")
+    } description: {
       Text("Hit ‘New Demo’ to record an idea, shape it with Enhance, and share it anywhere.")
-        .font(.system(size: 15))
-        .foregroundStyle(.secondary)
-        .multilineTextAlignment(.center)
-        .lineSpacing(3)
     }
-    .frame(maxWidth: 252)
-    .frame(maxWidth: .infinity, maxHeight: .infinity)
-    .offset(y: -20)
   }
 
   // MARK: - 1a
@@ -65,15 +51,14 @@ struct MemoListView: View {
         }
       } footer: {
         Text("Swipe a demo to share")
-          .font(.system(size: 12.5))
-          .foregroundStyle(Color(.tertiaryLabel))
+          .font(.footnote)
+          .foregroundStyle(.tertiary)
           .frame(maxWidth: .infinity)
           .padding(.top, 6)
       }
     }
     .listStyle(.insetGrouped)
     .scrollContentBackground(.hidden)
-    .scrollIndicators(.hidden)
     .contentMargins(.bottom, 110, for: .scrollContent)
   }
 
@@ -84,18 +69,18 @@ struct MemoListView: View {
       HStack(spacing: 12) {
         VStack(alignment: .leading, spacing: 2) {
           Text(memo.name)
-            .font(.system(size: 17, weight: .semibold))
+            .font(.headline)
             .foregroundStyle(.primary)
             .lineLimit(1)
           Text(memo.createdAt.listMetaLabel)
-            .font(.system(size: 14))
+            .font(.subheadline)
             .foregroundStyle(.secondary)
         }
         Spacer(minLength: 0)
         Text(memo.duration.shortTimeLabel)
-          .font(.system(size: 15))
+          .font(.subheadline)
           .monospacedDigit()
-          .foregroundStyle(Color(.tertiaryLabel))
+          .foregroundStyle(.tertiary)
       }
       .padding(.horizontal, 16)
       .frame(minHeight: 66)
@@ -108,9 +93,7 @@ struct MemoListView: View {
       } label: {
         Label("Delete", systemImage: "trash")
       }
-      Button {
-        state.share(memo)
-      } label: {
+      ShareLink(item: state.fileURL(for: memo)) {
         Label("Share", systemImage: "square.and.arrow.up")
       }
       .tint(.blue)
@@ -121,35 +104,39 @@ struct MemoListView: View {
 
   private var newDemoPill: some View {
     Button(action: onNewDemo) {
-      HStack(spacing: 9) {
-        Image(systemName: "mic.fill").font(.system(size: 16, weight: .semibold))
-        Text("New Demo").font(.system(size: 16, weight: .semibold))
-      }
-      .foregroundStyle(.white)
-      .padding(.vertical, 13)
-      .padding(.horizontal, 24)
-      .background(Palette.accent.opacity(0.9), in: .capsule)
-      .shadow(color: Palette.accent.opacity(0.35), radius: 12, y: 8)
+      Label("New Demo", systemImage: "mic.fill")
+        .font(.headline)
+        .foregroundStyle(.white)
+        .padding(.vertical, 13)
+        .padding(.horizontal, 24)
+        .background(Palette.accent.opacity(0.9), in: .capsule)
+        .shadow(color: Palette.accent.opacity(0.35), radius: 12, y: 8)
     }
     .padding(.bottom, 40)
   }
 }
 
 #Preview("1a · populated") {
-  MemoListView(
-    state: MemoListState(store: PreviewScenario.populatedStore), onNewDemo: {}, onOpen: { _ in }
-  )
+  NavigationStack {
+    MemoListView(
+      state: MemoListState(store: PreviewScenario.populatedStore), onNewDemo: {}, onOpen: { _ in }
+    )
+  }
 }
 
 #Preview("2a · populated (dark)") {
-  MemoListView(
-    state: MemoListState(store: PreviewScenario.populatedStore), onNewDemo: {}, onOpen: { _ in }
-  )
+  NavigationStack {
+    MemoListView(
+      state: MemoListState(store: PreviewScenario.populatedStore), onNewDemo: {}, onOpen: { _ in }
+    )
+  }
   .preferredColorScheme(.dark)
 }
 
 #Preview("4a · empty") {
-  MemoListView(
-    state: MemoListState(store: PreviewScenario.emptyStore), onNewDemo: {}, onOpen: { _ in }
-  )
+  NavigationStack {
+    MemoListView(
+      state: MemoListState(store: PreviewScenario.emptyStore), onNewDemo: {}, onOpen: { _ in }
+    )
+  }
 }

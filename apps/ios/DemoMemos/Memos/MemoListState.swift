@@ -7,7 +7,6 @@ import Foundation
 final class MemoListState {
   private(set) var memos: [Memo] = []
   private(set) var errorMessage: String?
-  var shareTarget: ShareTarget?
 
   private let store: MemoStore
 
@@ -37,7 +36,9 @@ final class MemoListState {
     }
   }
 
-  func share(_ memo: Memo) {
-    shareTarget = ShareTarget(url: store.fileURL(for: memo))
+  /// The on-disk `.m4a` a `ShareLink` shares — the view asks its state for this
+  /// rather than reaching into the store itself.
+  func fileURL(for memo: Memo) -> URL {
+    store.fileURL(for: memo)
   }
 }

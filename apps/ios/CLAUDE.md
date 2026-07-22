@@ -3,6 +3,24 @@
 Stack-specific *mechanisms*. The rules they implement live in `PRINCIPLES.md`
 at the repo root — read that first for where a file goes and why.
 
+## Native by default
+
+Reach for the Apple default first; this app should feel first-party. Semantic
+fonts + Dynamic Type (`.headline`, `.subheadline`, …) over fixed
+`.system(size:)`; semantic colours (`.primary`, `.secondary`, `.tertiary`, the
+asset-catalog `AccentColor`) over hardcoded hex; real navigation
+(`.navigationTitle`, `.toolbar` with `.cancellationAction` /
+`.confirmationAction`, the automatic back button) over hand-rolled header bars;
+`ShareLink` over a `UIActivityViewController` bridge; `ContentUnavailableView`
+for empty states; standard `.swipeActions`, `.sheet`, list styles, SF Symbols.
+
+Go bespoke **only** where the design deliberately does — the waveform, the
+Enhance dial, the transport buttons, the floating New Demo pill, the orange
+warm-ramp. Those use `Palette` for their fills; everything standard inherits
+`AccentColor`. The hero timer is a fixed-size display element (as Clock / Voice
+Memos do), not Dynamic Type. If a design choice and a native default genuinely
+conflict, flag it — don't silently pick one.
+
 ## Folder shape
 
 ```

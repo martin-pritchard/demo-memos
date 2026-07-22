@@ -65,8 +65,8 @@ struct RootView: View {
         },
         onOpen: { playbackMemo = $0 }
       )
-      .toolbar(.hidden, for: .navigationBar)
       .navigationDestination(item: $playbackMemo) { memo in
+        // Pushed into this stack, so it gets the native "Demos" back button.
         CaptureView(
           state: CaptureState(
             memo: memo,
@@ -75,19 +75,22 @@ struct RootView: View {
             player: services.makePlayer()
           ),
           createdAt: memo.createdAt,
-          onFinish: {
-            playbackMemo = nil
-            listState.load()
-          }
+          onFinish: {}
         )
-        .toolbar(.hidden, for: .navigationBar)
       }
+    }
+    // The list reflects any rename / enhance change once playback is popped.
+    .onChange(of: playbackMemo) { _, memo in
+      if memo == nil { listState.load() }
     }
     .fullScreenCover(isPresented: isRecording) {
       if let captureState {
-        CaptureView(state: captureState, createdAt: .now) {
-          self.captureState = nil
-          listState.load()
+        // Its own stack, so Cancel / Done land in a real nav bar.
+        NavigationStack {
+          CaptureView(state: captureState, createdAt: .now) {
+            self.captureState = nil
+            listState.load()
+          }
         }
       }
     }

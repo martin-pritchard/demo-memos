@@ -12,17 +12,17 @@ struct CaptureView: View {
   @Environment(\.openURL) private var openURL
   @Environment(\.scenePhase) private var scenePhase
   @FocusState private var titleFocused: Bool
-  @State private var shareTarget: ShareTarget?
   @State private var scrubOrigin: Double?
 
   var body: some View {
     VStack(spacing: 0) {
-      header
       content
       Spacer(minLength: 0)
       tray
     }
     .background(Palette.pageBackground.ignoresSafeArea())
+    .navigationBarTitleDisplayMode(.inline)
+    .toolbar { toolbar }
     .task { await state.onAppear() }
     .onDisappear { state.onDisappear() }
     .onChange(of: scenePhase) { _, phase in
@@ -31,56 +31,32 @@ struct CaptureView: View {
     .onChange(of: state.isFinished) { _, finished in
       if finished { onFinish() }
     }
-    .sheet(item: $shareTarget) { ShareSheet(url: $0.url) }
   }
 
-  // MARK: - Header
+  // MARK: - Toolbar
+  //
+  // The design's header — Cancel/Done in the record flow, ‹ Demos + Share in
+  // playback — is exactly a native nav bar. Cancel/Done use the system's
+  // cancellation/confirmation placements; the playback back button comes from
+  // the parent stack for free, and Share is a `ShareLink`.
 
-  private var header: some View {
-    HStack {
-      leading
-      Spacer()
-      trailing
+  @ToolbarContentBuilder private var toolbar: some ToolbarContent {
+    if state.status != .playback {
+      ToolbarItem(placement: .cancellationAction) {
+        Button("Cancel") { state.cancel() }
+      }
     }
-    .font(.system(size: 17, weight: .medium))
-    .tint(Palette.accent)
-    .frame(height: 26)
-    // The design's 56pt is measured from the top of the screen, where its
-    // status bar is absolutely positioned. That is the safe-area inset, which
-    // SwiftUI has already applied — so nothing to add here.
-    .padding(.horizontal, 20)
-  }
-
-  @ViewBuilder private var leading: some View {
-    if state.status == .playback {
-      Button {
-        state.commitRename()
-        onFinish()
-      } label: {
-        HStack(spacing: 3) {
-          Image(systemName: "chevron.left").font(.system(size: 18, weight: .semibold))
-          Text("Demos")
+    if state.status == .stopped {
+      ToolbarItem(placement: .confirmationAction) {
+        Button("Done") { state.done() }
+      }
+    }
+    if state.status == .playback, let url = state.shareURL {
+      ToolbarItem(placement: .confirmationAction) {
+        ShareLink(item: url) {
+          Image(systemName: "square.and.arrow.up")
         }
       }
-    } else {
-      Button("Cancel") { state.cancel() }
-    }
-  }
-
-  @ViewBuilder private var trailing: some View {
-    switch state.status {
-    case .ready, .recording:
-      EmptyView()
-    case .stopped:
-      Button("Done") { state.done() }
-        .fontWeight(.semibold)
-    case .playback:
-      Button {
-        if let url = state.shareURL { shareTarget = ShareTarget(url: url) }
-      } label: {
-        Image(systemName: "square.and.arrow.up").font(.system(size: 20, weight: .medium))
-      }
-      .accessibilityLabel("Share")
     }
   }
 
@@ -90,7 +66,7 @@ struct CaptureView: View {
     VStack(spacing: 0) {
       title
       Text(createdAt.listMetaLabel)
-        .font(.system(size: 14))
+        .font(.subheadline)
         .foregroundStyle(.secondary)
         .padding(.top, 2)
         .padding(.bottom, 30)
@@ -102,12 +78,12 @@ struct CaptureView: View {
 
       // Reserved so the layout below never shifts when an error appears.
       Text(state.errorMessage ?? " ")
-        .font(.system(size: 14, weight: .medium))
+        .font(.subheadline.weight(.medium))
         .foregroundStyle(state.errorMessage == nil ? .clear : Color(.systemRed))
         .frame(height: 24)
         .padding(.top, 14)
     }
-    .padding(.top, 90)
+    .padding(.top, 40)
     .padding(.horizontal, 24)
   }
 
@@ -121,11 +97,10 @@ struct CaptureView: View {
           if !focused { state.commitRename() }
         }
         .multilineTextAlignment(.center)
-        .font(.system(size: 24, weight: .bold))
-        .tint(Palette.accent)
+        .font(.title2.bold())
     } else {
       Text(state.name)
-        .font(.system(size: 24, weight: .bold))
+        .font(.title2.bold())
         .lineLimit(1)
     }
   }
@@ -261,7 +236,7 @@ struct CaptureView: View {
     VStack(spacing: 8) {
       button()
       Text(label)
-        .font(.system(size: 13, weight: .medium))
+        .font(.footnote.weight(.medium))
         .foregroundStyle(.secondary)
     }
     .accessibilityElement(children: .combine)
@@ -272,56 +247,45 @@ struct CaptureView: View {
   private var permissionNotice: some View {
     VStack(spacing: 12) {
       Text("Demo Memos needs the microphone to record.")
-        .font(.system(size: 15))
+        .font(.subheadline)
         .foregroundStyle(.secondary)
         .multilineTextAlignment(.center)
       Button("Open Settings") {
         if let url = URL(string: UIApplication.openSettingsURLString) { openURL(url) }
       }
-      .font(.system(size: 17, weight: .semibold))
-      .tint(Palette.accent)
+      .font(.body.weight(.semibold))
     }
     .frame(height: 90)
     .padding(.horizontal, 32)
   }
 }
 
-// MARK: - Previews — every state in 1d, with no microphone and no files
+// MARK: - Previews — every state in 1d, with no microphone and no files.
+// Wrapped in a NavigationStack so the native toolbar (Cancel/Done/Share) shows.
 
-#Preview("1b · ready") {
-  CaptureView(state: CapturePreview.state(.ready), createdAt: .now, onFinish: {})
+private func capturePreview(_ state: CaptureState, createdAt: Date = .now) -> some View {
+  NavigationStack {
+    CaptureView(state: state, createdAt: createdAt, onFinish: {})
+  }
 }
 
-#Preview("1b · recording") {
-  CaptureView(state: CapturePreview.state(.recording), createdAt: .now, onFinish: {})
-}
+#Preview("1b · ready") { capturePreview(CapturePreview.state(.ready)) }
 
-#Preview("1b · stopped") {
-  CaptureView(state: CapturePreview.state(.stopped), createdAt: .now, onFinish: {})
-}
+#Preview("1b · recording") { capturePreview(CapturePreview.state(.recording)) }
+
+#Preview("1b · stopped") { capturePreview(CapturePreview.state(.stopped)) }
 
 #Preview("1c · playback") {
-  CaptureView(
-    state: CapturePreview.playbackState(),
-    createdAt: PreviewScenario.sampleMemo.createdAt,
-    onFinish: {}
-  )
+  capturePreview(CapturePreview.playbackState(), createdAt: PreviewScenario.sampleMemo.createdAt)
 }
 
 #Preview("2c · playback (dark)") {
-  CaptureView(
-    state: CapturePreview.playbackState(),
-    createdAt: PreviewScenario.sampleMemo.createdAt,
-    onFinish: {}
-  )
-  .preferredColorScheme(.dark)
+  capturePreview(CapturePreview.playbackState(), createdAt: PreviewScenario.sampleMemo.createdAt)
+    .preferredColorScheme(.dark)
 }
 
 #Preview("Microphone denied") {
-  CaptureView(
-    state: CapturePreview.state(.ready, permission: .denied), createdAt: .now, onFinish: {})
+  capturePreview(CapturePreview.state(.ready, permission: .denied))
 }
 
-#Preview("Save failed") {
-  CaptureView(state: CapturePreview.failedSaveState(), createdAt: .now, onFinish: {})
-}
+#Preview("Save failed") { capturePreview(CapturePreview.failedSaveState()) }
