@@ -2,8 +2,8 @@
 
 Stack-agnostic conventions for how code in this project is organised. These
 are the *rules*; the *mechanisms* that implement them differ per stack and
-live in the per-stack appendix (e.g. `PRINCIPLES.ios.md`, `PRINCIPLES.web.md`)
-and in this project's `CLAUDE.md`.
+live in the per-stack appendix (e.g. `docs/PRINCIPLES.ios.md`,
+`docs/PRINCIPLES.web.md`) and in this project's `CLAUDE.md`.
 
 **For agents:** follow these when creating, moving, or naming files. When a
 principle and a mechanism seem to conflict, the mechanism in the stack
@@ -135,12 +135,52 @@ When unsure, prefer the more local location and promote later (see #2).
 
 ---
 
+## Where does a markdown doc go?
+
+Root is for files with a fixed home; `docs/` is for everything else.
+
+- A doc lives at the repo **root** only if external tooling or a hard
+  convention requires it there:
+  - `README.md` — rendered as the landing page by GitHub/GitLab/npm/etc.
+  - `LICENSE` — license detection and convention.
+  - `CLAUDE.md` — Claude Code only auto-loads it from the root, so it stays
+    there permanently. This is an exception by necessity, not a doc to
+    "clean up" into `docs/`.
+- **Everything else** — this file, `SECURITY.md`, `CONTRIBUTING.md`,
+  `CODE_OF_CONDUCT.md`, architecture notes, guides, references — lives under
+  `docs/`. GitHub's special-file UI (security policy, contributing banner,
+  code-of-conduct badge) resolves from root, `docs/`, *or* `.github/`, so
+  `docs/` keeps the integration *and* the clean root.
+- When in doubt, it goes in `docs/`. Keep the root minimal.
+
+---
+
+## Commit convention
+
+Commit per coherent step. Use **Conventional Commits**: `type(scope): summary`.
+
+- Types: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`, `build`, `ci`,
+  `perf`, `style`, `revert`. Scope is optional but preferred — the area of
+  the repo the change touches.
+- Summary: imperative mood, lowercase, no trailing period, ≤72 chars.
+- Breaking changes: `!` before the colon (`feat(api)!: drop v1 endpoints`),
+  explained in the body.
+- Body is optional; use it for *why*, not *what*.
+- If the repo's existing `git log` clearly follows a different convention,
+  match the repo — don't impose this one over an established one.
+
+---
+
 ## Using this file
 
-- `/setup` copies it into each repo; the repo's copy is the live one — adapt
-  it, and add stack appendices as the project grows.
+- This file is **plugin-managed**. `/setup` copies it into each repo, and
+  when the plugin's template changes the repo's `docs/PRINCIPLES.md` is
+  refreshed by overwriting it wholesale — so don't hand-edit it, your changes
+  would be lost on the next update. Put project-specific rules and any
+  adaptations in stack appendices (`docs/PRINCIPLES.ios.md`,
+  `docs/PRINCIPLES.web.md`) and `CLAUDE.md`, which are never overwritten.
 - Reference it from the repo's `CLAUDE.md` with a plain mention ("Placement
-  rules live in PRINCIPLES.md — read it before creating or moving files"),
+  rules live in docs/PRINCIPLES.md — read it before creating or moving files"),
   not an `@` import — build sessions load it on demand; other sessions
   shouldn't carry it on every turn.
 - Keep `CLAUDE.md` for the project-specific parts: the actual folder tree,

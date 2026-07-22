@@ -11,7 +11,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
   iOS 26.5 deployment target, Swift 5 language mode.
 - `apps/web` — placeholder, no stack chosen yet.
 - `design` — design source and export helpers, not shipped code.
-- `docs/security.md` — secret-handling rules. Read before adding any credential,
+- `docs/SECURITY.md` — secret-handling rules. Read before adding any credential,
   key, or `.env`; the "keys in an app binary are extractable" section is a real
   architectural constraint, not boilerplate.
 
@@ -42,8 +42,9 @@ there as they're decided, not in this file.
 need no signing, so fresh clones and CI work with the file absent.
 
 Never let a `DEVELOPMENT_TEAM` land in `project.pbxproj` — Xcode's Signing &
-Capabilities UI re-stamps it, and the pre-commit hook blocks the commit.
-Put credentials in neither file; see `docs/security.md`.
+Capabilities UI re-stamps it, so check it before committing. Set signing via
+`apps/ios/Local.xcconfig` (gitignored) instead. Put credentials in neither
+file; see `docs/SECURITY.md`.
 
 ## Repo setup (once per clone)
 
