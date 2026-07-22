@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+# Block commits that contain secrets. Enable once per clone with:
+#
+#   git config core.hooksPath .githooks
+#
+# This repo is public, so a leaked credential is public the instant it is
+# pushed. The hook is the last cheap place to stop that — after this point the
+# only remedy is rotation (see docs/security.md).
+set -euo pipefail
+
+if ! command -v gitleaks >/dev/null 2>&1; then
+  # Fail closed. A silently-skipped secret scan is worse than a blocked commit:
+  # it looks exactly like a passing one.
+  printf '\033[31mgitleaks not installed — cannot scan for secrets.\033[0m\n' >&2
+  printf 'install:  brew install gitleaks\n' >&2
+  printf 'then:     git config core.hooksPath .githooks\n' >&2
+  exit 1
+fi
+
+# --staged scans the index, which is what is actually about to be committed —
+# not the worktree, which may contain unstaged edits that mask a staged secret.
+if ! gitleaks git --staged --redact --no-banner .; then
+  printf '\n\033[31mCommit blocked: a possible secret is staged.\033[0m\n' >&2
+  printf 'If it is real, ROTATE IT FIRST — do not just unstage it.\n' >&2
+  printf 'See docs/security.md.\n' >&2
+  printf 'If it is a false positive, annotate the line with: gitleaks:allow\n' >&2
+  exit 1
+fi
+
+# Identity hygiene, not secret-scanning — so gitleaks neither does nor should
+# catch this. A DEVELOPMENT_TEAM is a public identifier, but it is personal,
+# and Xcode's Signing & Capabilities UI keeps re-stamping it into the project
+# file. Set it via apps/ios/Local.xcconfig instead, which is gitignored.
+staged_pbxproj=$(git diff --cached --name-only --diff-filter=ACM | grep 'project\.pbxproj$' || true)
+if [ -n "$staged_pbxproj" ]; then
+  while IFS= read -r pbxproj; do
+    # Read the *index* copy: that is what is about to be committed. An empty
+    # value (DEVELOPMENT_TEAM = "";) is the cleaned state and is fine.
+    if git show ":$pbxproj" | grep -qE 'DEVELOPMENT_TEAM[[:space:]]*=[[:space:]]*"?[A-Za-z0-9]+'; then
+      printf '\n\033[31mCommit blocked: %s has a DEVELOPMENT_TEAM stamped in.\033[0m\n' "$pbxproj" >&2
+      printf 'This is identity, not a secret — but it does not belong in a public project.\n' >&2
+      printf 'Clear it in Xcode (Signing & Capabilities -> uncheck automatic signing,\n' >&2
+      printf 'or set the team to None) and keep signing in apps/ios/Local.xcconfig.\n' >&2
+      printf 'See docs/security.md and apps/ios/CLAUDE.md.\n' >&2
+      exit 1
+    fi
+  done <<<"$staged_pbxproj"
+fi
