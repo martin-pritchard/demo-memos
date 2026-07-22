@@ -1,0 +1,34 @@
+# macOS
+.DS_Store
+
+# Xcode / Swift
+xcuserdata/
+DerivedData/
+build/
+.build/
+*.xcuserstate
+*.xcscmblueprint
+*.moved-aside
+.swiftpm/
+Packages/
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+# Local, per-developer signing (e.g. DEVELOPMENT_TEAM for on-device builds).
+# A Team ID isn't a secret, but it's personal identity — keep it out of the public project.
+Local.xcconfig
+
+# Claude Code — per-developer local overrides (permissions etc.), never shared
+.claude/settings.local.json
+
+# Node / web
+node_modules/
+dist/
+.astro/
+.next/
+.cache/
+*.log
+.env
+.env.local
+.env.*.local
