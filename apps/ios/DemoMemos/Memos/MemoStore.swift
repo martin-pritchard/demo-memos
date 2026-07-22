@@ -14,8 +14,9 @@ protocol MemoStore: AnyObject {
   /// directory if needed; does not create the file.
   func newRecordingURL() -> URL
 
-  /// Promote an uncommitted recording into the index. A take of zero length is
-  /// not a take: nothing is persisted, the file is removed, and this returns nil.
+  /// Promote an uncommitted recording into the index. A take shorter than
+  /// `Memo.minimumDuration` is not a take: nothing is persisted, the file is
+  /// removed, and this returns nil.
   @discardableResult
   func commit(
     recordingAt url: URL, duration: TimeInterval, enhance: Double, createdAt: Date
@@ -67,7 +68,7 @@ final class SwiftDataMemoStore: MemoStore {
   func commit(
     recordingAt url: URL, duration: TimeInterval, enhance: Double, createdAt: Date
   ) throws -> Memo? {
-    guard duration > 0 else {
+    guard duration >= Memo.minimumDuration else {
       discard(recordingAt: url)
       return nil
     }

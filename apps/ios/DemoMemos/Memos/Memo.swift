@@ -33,6 +33,11 @@ final class Memo {
     self.filename = filename
   }
 
+  /// Below this, a take is a mis-tap rather than a recording: stopping the
+  /// instant you started still leaves a fraction of a second on disk, and that
+  /// must not become a 0:00 row.
+  static let minimumDuration: TimeInterval = 0.5
+
   /// The date-stamped name a take carries until the user renames it — and the
   /// one it falls back to if a rename is committed blank.
   static func defaultName(for date: Date) -> String {

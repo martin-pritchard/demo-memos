@@ -180,10 +180,12 @@ struct CaptureView: View {
   private var tray: some View {
     VStack(spacing: state.status == .playback ? 26 : 20) {
       EnhanceSlider(value: $state.enhance)
-      if state.canRecord || state.status == .playback {
-        transport
-      } else {
+      // Only an actual denial earns the notice — while the system prompt is
+      // still up, permission is undetermined and nothing has been refused yet.
+      if state.permission == .denied {
         permissionNotice
+      } else {
+        transport
       }
     }
     .padding(.bottom, 42)
@@ -217,7 +219,20 @@ struct CaptureView: View {
             .overlay(mainGlyph)
             .frame(width: 66, height: 66)
         }
+        .disabled(!isMainEnabled)
+        .opacity(isMainEnabled ? 1 : 0.35)
       }
+    }
+  }
+
+  /// The right button dims rather than lying about being live — the same
+  /// vocabulary the design uses for Play before a take exists. Resume is only
+  /// offered while the take is still open; playback never captures.
+  private var isMainEnabled: Bool {
+    switch state.status {
+    case .ready, .recording: true
+    case .stopped: state.canResume
+    case .playback: false
     }
   }
 

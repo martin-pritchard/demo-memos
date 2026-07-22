@@ -32,16 +32,23 @@ The issue's plan lists `apps/ios/DemoMemos/Info.plist`. This target has
 way. Introducing a hand-written plist would have meant turning generation off
 and re-declaring every key that already works.
 
-### Resume is wired, not just drawn
+### Resume works until the take is previewed, then dims
 
 The issue's non-goals name "resume-onto-a-take (3a)", but its agreed behaviour
 says "Stop/Record/Resume right", and 1d — cited as normative for the four
-states — shows Resume as the stopped state's right button. A visible,
-enabled-looking button that does nothing is worse than either, and the
-mechanism is free: `AVAudioRecorder.pause()` / `record()` continue the same
-file, so `AudioRecorder` brackets a take with `pause`/`record` and only
-finalises on `finish()`. Turn 3a itself — which control shape to use — was
-already resolved by the design.
+states — shows Resume as the stopped state's right button. So it is wired,
+because the mechanism is free: `AVAudioRecorder.pause()` / `record()` continue
+the same file, and `AudioRecorder` only finalises on `finish()`.
+
+It is free *only* while the file is still open. A part-written `.m4a` is not
+readable, so previewing a stopped take has to close it — and appending to a
+closed file means stitching segments together with `AVMutableComposition`,
+which is real machinery and squarely 3a's job. So Resume is offered until the
+take is previewed (or a save fails), and dims after, using the same dimming the
+design already uses for Play before a take exists. In `playback` — which never
+captures — it is always dimmed.
+
+Deferred to 3a: segment stitching, which would make Resume unconditional.
 
 ### Playback's header carries Share only
 

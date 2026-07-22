@@ -88,7 +88,7 @@ final class FakeMemoStore: MemoStore {
     recordingAt url: URL, duration: TimeInterval, enhance: Double, createdAt: Date
   ) throws -> Memo? {
     if failOnCommit { throw FakeStoreError.commitFailed }
-    guard duration > 0 else {
+    guard duration >= Memo.minimumDuration else {
       discard(recordingAt: url)
       return nil
     }

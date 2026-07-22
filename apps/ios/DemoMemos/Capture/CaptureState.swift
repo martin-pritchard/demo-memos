@@ -23,6 +23,8 @@ final class CaptureState {
   private(set) var errorMessage: String?
   private(set) var isFinished = false
   private(set) var isPlaying = false
+  /// True once the recording file has been closed and can no longer be appended to.
+  private(set) var isFinalised = false
 
   var enhance: Double {
     didSet { if status == .playback { persistEnhance() } }
@@ -109,6 +111,9 @@ final class CaptureState {
   }
 
   func onDisappear() {
+    // "Commit on return or dismiss" includes an interactive swipe-back, which
+    // never touches the Demos button.
+    if status == .playback { commitRename() }
     stopTicker()
     player.pause()
     isPlaying = false
@@ -119,6 +124,12 @@ final class CaptureState {
   var canRecord: Bool { permission == .granted }
   var canPlay: Bool { status == .playback || takeDuration > 0 }
   var isLive: Bool { status == .ready || status == .recording }
+
+  /// Resume appends to the take by un-pausing the recorder, so it is only
+  /// available while the file is still open. Previewing the take closes it —
+  /// appending to a finalised file would mean stitching segments together, and
+  /// that is 3a's job, not this issue's. Playback never captures at all.
+  var canResume: Bool { status == .stopped && !isFinalised }
 
   /// The playable `.m4a` behind the share sheet.
   var shareURL: URL? {
@@ -134,7 +145,7 @@ final class CaptureState {
   // MARK: - Events
 
   func record() {
-    guard status == .ready || status == .stopped else { return }
+    guard status == .ready || canResume else { return }
     guard canRecord else { return }
     errorMessage = nil
     if recordingURL == nil {
@@ -176,9 +187,11 @@ final class CaptureState {
       return
     }
     if progress >= 1 { progress = 0 }
-    if status == .stopped {
-      // Finalise so there is a readable file to preview, then reload it.
+    if status == .stopped, !isFinalised {
+      // A part-written `.m4a` is not readable, so previewing has to close the
+      // file. That is what ends the window for Resume — see `canResume`.
       let duration = recorder.finish()
+      isFinalised = true
       if duration > 0 { takeDuration = duration }
       if let recordingURL { try? player.load(url: recordingURL) }
       player.onFinish = { [weak self] in
@@ -221,6 +234,8 @@ final class CaptureState {
       return
     }
     let duration = recorder.finish()
+    // The file is closed now, so a failed save cannot be followed by a Resume.
+    isFinalised = true
     do {
       try store.commit(
         recordingAt: recordingURL,
