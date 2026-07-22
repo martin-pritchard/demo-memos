@@ -21,6 +21,7 @@ struct DemoMemosApp: App {
 /// initialiser arguments; nothing reaches out for a singleton.
 struct Services {
   let store: MemoStore
+  let onboarding: UserDefaultsOnboardingStore
   let makeRecorder: () -> AudioRecorder
   let makePlayer: () -> AudioPlayer
 
@@ -33,6 +34,7 @@ struct Services {
     try? store.removeOrphanedFiles()
     return Services(
       store: store,
+      onboarding: UserDefaultsOnboardingStore(),
       makeRecorder: { AVAudioRecorderAdapter() },
       makePlayer: { AVAudioPlayerAdapter() }
     )
@@ -46,13 +48,28 @@ struct RootView: View {
   @State private var listState: MemoListState
   @State private var captureState: CaptureState?
   @State private var playbackMemo: Memo?
+  /// Read once at launch. Flipping it after Continue swaps the intro for the
+  /// list; the flag itself is persisted through `services.onboarding`.
+  @State private var hasOnboarded: Bool
 
   init(services: Services) {
     self.services = services
     _listState = State(initialValue: MemoListState(store: services.store))
+    _hasOnboarded = State(initialValue: services.onboarding.hasOnboarded)
   }
 
   var body: some View {
+    if hasOnboarded {
+      mainFlow
+    } else {
+      OnboardingView {
+        services.onboarding.markOnboarded()
+        hasOnboarded = true
+      }
+    }
+  }
+
+  private var mainFlow: some View {
     NavigationStack {
       MemoListView(
         state: listState,
