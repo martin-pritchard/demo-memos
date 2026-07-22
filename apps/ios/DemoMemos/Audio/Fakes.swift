@@ -134,8 +134,10 @@ enum PreviewScenario {
 
   /// 1a / 2a — the populated list, matching the design's sample takes.
   static var populatedStore: FakeMemoStore {
+    // Relative to now, so the list's Today / Yesterday / weekday labels are
+    // actually exercised rather than falling through to a bare date.
     let day: TimeInterval = 86_400
-    let now = Date(timeIntervalSince1970: 1_753_200_000)
+    let now = Date.now
     return FakeMemoStore(memos: [
       memo("New Demo 3", now, 37, 0.62),
       memo("Chorus — fast", now - 14_500, 21, 0.5),
@@ -146,7 +148,7 @@ enum PreviewScenario {
   }
 
   static var sampleMemo: Memo {
-    memo("New Demo 3", Date(timeIntervalSince1970: 1_753_200_000), 37, 0.5)
+    memo("New Demo 3", .now, 37, 0.5)
   }
 
   static func grantedRecorder(duration: TimeInterval = 0) -> FakeAudioRecorder {

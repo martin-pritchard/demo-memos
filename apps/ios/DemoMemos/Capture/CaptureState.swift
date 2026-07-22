@@ -66,7 +66,9 @@ final class CaptureState {
     self.status = .ready
     self.name = Memo.defaultName(for: now())
     self.enhance = 0.5
-    self.levels = Array(repeating: 0, count: Self.liveBarCount)
+    // A flat resting line: ready is not capturing, so the waveform must not
+    // look like it is reacting to anything.
+    self.levels = Array(repeating: 0.05, count: Self.liveBarCount)
     self.takeLevels = []
     self.permission = recorder.permission
     observeRecorder()

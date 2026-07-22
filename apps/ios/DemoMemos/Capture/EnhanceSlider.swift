@@ -41,6 +41,8 @@ struct EnhanceSlider: View {
   private var track: some View {
     ZStack {
       ticks
+        .frame(width: Self.trackWidth, height: 40)
+        .clipped()
         .mask(
           LinearGradient(
             stops: [

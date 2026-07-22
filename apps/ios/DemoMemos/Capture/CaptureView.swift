@@ -131,7 +131,12 @@ struct CaptureView: View {
   private var waveform: some View {
     Group {
       if state.isLive {
-        WaveformView(levels: state.levels, mode: .live, enhance: state.enhance)
+        // Ready is at rest: no bloom, no warmth, until something is captured.
+        WaveformView(
+          levels: state.levels,
+          mode: .live,
+          enhance: state.status == .ready ? 0 : state.enhance
+        )
       } else {
         WaveformView(
           levels: state.takeLevels,
