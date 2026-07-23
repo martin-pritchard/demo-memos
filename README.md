@@ -1,4 +1,4 @@
-# Demo Memos
+# Demo Memos · iPhone App
 ![app screenshots](./docs/demo-memos-screenshot.png)
 
 ## What
