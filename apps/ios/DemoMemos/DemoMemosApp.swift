@@ -24,6 +24,7 @@ struct Services {
   let onboarding: UserDefaultsOnboardingStore
   let makeRecorder: () -> AudioRecorder
   let makePlayer: () -> AudioPlayer
+  let makeCountInTicker: () -> CountInTicker
 
   static func live() -> Services {
     let container = try! ModelContainer(for: Memo.self)
@@ -36,7 +37,8 @@ struct Services {
       store: store,
       onboarding: UserDefaultsOnboardingStore(),
       makeRecorder: { AVAudioRecorderAdapter() },
-      makePlayer: { AVAudioPlayerAdapter() }
+      makePlayer: { AVAudioPlayerAdapter() },
+      makeCountInTicker: { SystemSoundCountInTicker() }
     )
   }
 }
@@ -77,7 +79,8 @@ struct RootView: View {
           captureState = CaptureState(
             store: services.store,
             recorder: services.makeRecorder(),
-            player: services.makePlayer()
+            player: services.makePlayer(),
+            countInTicker: services.makeCountInTicker()
           )
         },
         onOpen: { playbackMemo = $0 }
@@ -89,7 +92,8 @@ struct RootView: View {
             memo: memo,
             store: services.store,
             recorder: services.makeRecorder(),
-            player: services.makePlayer()
+            player: services.makePlayer(),
+            countInTicker: services.makeCountInTicker()
           ),
           createdAt: memo.createdAt,
           onFinish: {}

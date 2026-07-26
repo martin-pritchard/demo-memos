@@ -24,6 +24,32 @@ waveform bloom only. Nothing processes audio yet.
 
 ## Decided
 
+### The count-in is four beats, not three (#3)
+
+The issue's acceptance criteria say "three beats"; the design bundle's own
+intro to turn 8 says the same. But the chosen option 8a is labelled "counting
+4·3·2·1 inside the ring", its runnable prototype counts 4·3·2·1 at one beat a
+second, and turn 8's "try next" offers to "make the count length a setting (off
+/ 3 / 4 beats)" — which only reads as an offer if 4 is what was built. The
+runnable artifact is the more specific authority, and the issue itself repeats
+"4·3·2·1", so the count is four. Raised on the issue rather than silently
+reconciled.
+
+### The tick is a system sound, and obeys the silent switch
+
+`SystemSoundCountInTicker` plays `SystemSoundID` 1103 (`Tink`) —
+native-by-default, and it means no audio asset ships in the binary for four
+clicks. The consequence is that `AudioServicesPlaySystemSound` respects the
+ring/silent switch, so a count-in on a silenced phone is visible but not
+audible.
+
+Deferred, not chosen: routing the tick through an `AVAudioPlayer` on the
+recording session so it plays regardless of the switch, which would need a
+bundled tick sample and would put the ticker in the business of configuring the
+audio session — currently `AudioSession`'s job alone. Whether a musician's
+count-in should override silent is a product question, not one to settle inside
+a UI ticket.
+
 ### `NSMicrophoneUsageDescription` lives in build settings, not an Info.plist
 
 The issue's plan lists `apps/ios/DemoMemos/Info.plist`. This target has

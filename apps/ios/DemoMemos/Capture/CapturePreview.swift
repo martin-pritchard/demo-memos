@@ -16,6 +16,7 @@ enum CapturePreview {
       store: FakeMemoStore(),
       recorder: recorder,
       player: FakeAudioPlayer(),
+      countInTicker: FakeCountInTicker(),
       now: { Date(timeIntervalSince1970: 1_753_200_000) }
     )
     state.enhance = enhance
@@ -23,12 +24,22 @@ enum CapturePreview {
     switch status {
     case .ready, .playback:
       break
+    case .countingIn:
+      // Left running, so the preview counts 4·3·2·1 for real and the beat
+      // animation can be checked against 8a — it just does it silently.
+      state.record()
     case .recording, .stopped:
       state.record()
+      runCountIn(state)
       for level in sampleLevels(count: 240) { recorder.simulateLevel(level) }
       if status == .stopped { state.stop() }
     }
     return state
+  }
+
+  /// Skip past the count-in to the downbeat without waiting on the clock.
+  private static func runCountIn(_ state: CaptureState) {
+    for _ in 0..<CaptureState.countInBeats { state.advanceCountIn() }
   }
 
   static func playbackState(enhance: Double = 0.5) -> CaptureState {
@@ -39,6 +50,7 @@ enum CapturePreview {
       store: FakeMemoStore(memos: [memo]),
       recorder: FakeAudioRecorder(),
       player: FakeAudioPlayer(),
+      countInTicker: FakeCountInTicker(),
       now: { Date(timeIntervalSince1970: 1_753_200_000) }
     )
     state.progress = 0.32
@@ -55,9 +67,11 @@ enum CapturePreview {
       store: store,
       recorder: recorder,
       player: FakeAudioPlayer(),
+      countInTicker: FakeCountInTicker(),
       now: { Date(timeIntervalSince1970: 1_753_200_000) }
     )
     state.record()
+    runCountIn(state)
     for level in sampleLevels(count: 240) { recorder.simulateLevel(level) }
     state.stop()
     state.done()

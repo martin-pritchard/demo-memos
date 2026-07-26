@@ -3,15 +3,15 @@ import Foundation
 /// The one take view's state machine — record and playback are the same screen,
 /// so they are the same state object entered at a different point.
 ///
-///   ready → recording → stopped   (record again = resume onto the take)
-///   playback                      (an existing memo reopened from the list)
+///   ready → countingIn → recording → stopped   (record again = resume onto the take)
+///   playback                                   (an existing memo reopened from the list)
 ///
 /// Transitions are the only place capture, playback and the store meet; the
 /// view reads this and emits events back, and nothing else.
 @MainActor
 @Observable
 final class CaptureState {
-  enum Status: Equatable { case ready, recording, stopped, playback }
+  enum Status: Equatable { case ready, countingIn, recording, stopped, playback }
 
   private(set) var status: Status
   private(set) var permission: MicPermission = .undetermined
@@ -25,6 +25,8 @@ final class CaptureState {
   private(set) var isPlaying = false
   /// True once the recording file has been closed and can no longer be appended to.
   private(set) var isFinalised = false
+  /// The numeral the record button is showing — 4·3·2·1 while counting in, 0 otherwise.
+  private(set) var countInBeat = 0
 
   var enhance: Double {
     didSet { if status == .playback { persistEnhance() } }
@@ -38,18 +40,24 @@ final class CaptureState {
   private let store: MemoStore
   private let recorder: AudioRecorder
   private let player: AudioPlayer
+  private let countInTicker: CountInTicker
   private let now: () -> Date
 
   private let memo: Memo?
   private var recordingURL: URL?
   private var startedAt: Date?
   private var ticker: Timer?
+  private var countInTimer: Timer?
   private var levelsSinceLastSample = 0
 
   /// How many meter readings make one bar of the stored take waveform. The live
   /// meter runs at 20 Hz, so this samples the take at ~4 Hz.
   private static let samplesPerTakeBar = 5
   static let liveBarCount = 48
+
+  /// One bar of 4/4 at one beat a second, counted down inside the ring (8a).
+  static let countInBeats = 4
+  static let countInInterval: TimeInterval = 1
 
   // MARK: - Entry points
 
@@ -58,11 +66,13 @@ final class CaptureState {
     store: MemoStore,
     recorder: AudioRecorder,
     player: AudioPlayer,
+    countInTicker: CountInTicker,
     now: @escaping () -> Date = Date.init
   ) {
     self.store = store
     self.recorder = recorder
     self.player = player
+    self.countInTicker = countInTicker
     self.now = now
     self.memo = nil
     self.status = .ready
@@ -82,11 +92,13 @@ final class CaptureState {
     store: MemoStore,
     recorder: AudioRecorder,
     player: AudioPlayer,
+    countInTicker: CountInTicker,
     now: @escaping () -> Date = Date.init
   ) {
     self.store = store
     self.recorder = recorder
     self.player = player
+    self.countInTicker = countInTicker
     self.now = now
     self.memo = memo
     self.status = .playback
@@ -115,6 +127,7 @@ final class CaptureState {
     // never touches the Demos button.
     if status == .playback { commitRename() }
     stopTicker()
+    stopCountInTimer()
     player.pause()
     isPlaying = false
   }
@@ -123,7 +136,7 @@ final class CaptureState {
 
   var canRecord: Bool { permission == .granted }
   var canPlay: Bool { status == .playback || takeDuration > 0 }
-  var isLive: Bool { status == .ready || status == .recording }
+  var isLive: Bool { status == .ready || status == .countingIn || status == .recording }
 
   /// Resume appends to the take by un-pausing the recorder, so it is only
   /// available while the file is still open. Previewing the take closes it —
@@ -144,30 +157,49 @@ final class CaptureState {
 
   // MARK: - Events
 
+  /// Tapping the record button. A fresh take is counted in first; Resume is
+  /// not — it is appending to a take already under way, and being counted in
+  /// again would put four silent beats in the middle of it.
   func record() {
     guard status == .ready || canResume else { return }
     guard canRecord else { return }
     errorMessage = nil
-    if recordingURL == nil {
-      let url = store.newRecordingURL()
-      do {
-        try recorder.prepare(url: url)
-      } catch {
-        errorMessage = "Couldn't start recording."
-        return
-      }
-      recordingURL = url
-      startedAt = now()
-    }
-    stopPlayback()
-    do {
-      try recorder.record()
-    } catch {
-      errorMessage = "Couldn't start recording."
+    if canResume {
+      beginCapture()
       return
     }
-    status = .recording
-    startTicker()
+    // Prepared up front so the take starts on the beat rather than after the
+    // file is opened — and so a failure surfaces now, not four beats later.
+    guard prepareRecording() else { return }
+    status = .countingIn
+    countInBeat = Self.countInBeats
+    countInTicker.tick()
+    startCountInTimer()
+  }
+
+  /// One beat of the count-in — 4·3·2·1, then the downbeat, which is the first
+  /// captured moment. Driven by a 1 s timer; a plain method so the whole
+  /// count-in is testable without waiting on the clock.
+  func advanceCountIn() {
+    guard status == .countingIn else { return }
+    if countInBeat > 1 {
+      countInBeat -= 1
+      countInTicker.tick()
+      return
+    }
+    // The downbeat is the take, not a fifth tick.
+    stopCountInTimer()
+    countInBeat = 0
+    if !beginCapture() { status = .ready }
+  }
+
+  /// Tapping the counting button — abort with nothing captured and nothing left
+  /// on disk, back to where the tap came from.
+  func abortCountIn() {
+    guard status == .countingIn else { return }
+    endCountIn()
+    discardPreparedRecording()
+    status = .ready
   }
 
   func stop() {
@@ -211,6 +243,7 @@ final class CaptureState {
   }
 
   func cancel() {
+    endCountIn()
     stopPlayback()
     stopTicker()
     recorder.finish()
@@ -259,19 +292,86 @@ final class CaptureState {
     name = memo.name
   }
 
-  /// Call, Siri, route loss — auto-stop and keep whatever was captured.
+  /// Call, Siri, route loss — auto-stop and keep whatever was captured. Nothing
+  /// is captured yet during a count-in, so that just aborts.
   func handleInterruption() {
+    if status == .countingIn {
+      abortCountIn()
+      return
+    }
     guard status == .recording else { return }
     stop()
   }
 
-  /// Backgrounded mid-take. Same rule: stop and keep.
+  /// Backgrounded mid-take. Same rule: stop and keep — and a count-in must
+  /// never mature into a capture behind the user's back.
   func handleBackground() {
+    if status == .countingIn {
+      abortCountIn()
+      return
+    }
     guard status == .recording else { return }
     stop()
   }
 
   // MARK: - Internals
+
+  /// Opens the file for a fresh take. Reused as-is if one is already prepared.
+  private func prepareRecording() -> Bool {
+    guard recordingURL == nil else { return true }
+    let url = store.newRecordingURL()
+    do {
+      try recorder.prepare(url: url)
+    } catch {
+      errorMessage = "Couldn't start recording."
+      return false
+    }
+    recordingURL = url
+    return true
+  }
+
+  /// The downbeat, and the resume path — the only place capture actually starts.
+  @discardableResult
+  private func beginCapture() -> Bool {
+    stopPlayback()
+    do {
+      try recorder.record()
+    } catch {
+      errorMessage = "Couldn't start recording."
+      return false
+    }
+    if startedAt == nil { startedAt = now() }
+    status = .recording
+    startTicker()
+    return true
+  }
+
+  private func endCountIn() {
+    stopCountInTimer()
+    countInBeat = 0
+  }
+
+  /// A take that was counted in but never started leaves an empty file behind.
+  private func discardPreparedRecording() {
+    recorder.finish()
+    if let recordingURL { store.discard(recordingAt: recordingURL) }
+    recordingURL = nil
+    startedAt = nil
+  }
+
+  private func startCountInTimer() {
+    stopCountInTimer()
+    let timer = Timer(timeInterval: Self.countInInterval, repeats: true) { [weak self] _ in
+      MainActor.assumeIsolated { self?.advanceCountIn() }
+    }
+    RunLoop.main.add(timer, forMode: .common)
+    countInTimer = timer
+  }
+
+  private func stopCountInTimer() {
+    countInTimer?.invalidate()
+    countInTimer = nil
+  }
 
   private func observeRecorder() {
     recorder.onLevel = { [weak self] level in
