@@ -28,9 +28,12 @@ DemoMemos/
   DemoMemosApp.swift      composition root: @main, Services, RootView (routing)
   Memos/                  feature — the Demos list
   Capture/                feature — the take screen (record + playback)
+  Onboarding/             feature — the one-time first-launch intro
   Audio/                  UI-free core: capture/playback seams, fakes
-  DesignSystem/           shared UI: Palette, ShareSheet (two consumers each)
+  DesignSystem/           shared UI: Palette (+ its format extensions)
 ```
+
+Sharing is native `ShareLink` in both features — there is no ShareSheet bridge.
 
 One feature per folder, holding its screen, its state object and any component
 only it uses (`WaveformView` and `EnhanceSlider` live in `Capture/` for exactly
