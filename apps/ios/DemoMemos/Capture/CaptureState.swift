@@ -126,8 +126,10 @@ final class CaptureState {
     // "Commit on return or dismiss" includes an interactive swipe-back, which
     // never touches the Demos button.
     if status == .playback { commitRename() }
+    // A count-in that outlives the screen would leave an open file behind, so
+    // it aborts rather than merely stopping its timer.
+    abortCountIn()
     stopTicker()
-    stopCountInTimer()
     player.pause()
     isPlaying = false
   }
