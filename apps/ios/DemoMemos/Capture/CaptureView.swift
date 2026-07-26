@@ -108,11 +108,12 @@ struct CaptureView: View {
   private var waveform: some View {
     Group {
       if state.isLive {
-        // Ready is at rest: no bloom, no warmth, until something is captured.
+        // Ready and the count-in are at rest: no bloom, no warmth, until
+        // something is actually being captured.
         WaveformView(
           levels: state.levels,
           mode: .live,
-          enhance: state.status == .ready ? 0 : state.enhance
+          enhance: state.status == .recording ? state.enhance : 0
         )
       } else {
         WaveformView(
@@ -143,13 +144,22 @@ struct CaptureView: View {
     let label = state.displayTime.transportLabel
     return HStack(spacing: 0) {
       Text(label.major)
-        .foregroundStyle(state.status == .ready ? Color(.quaternaryLabel) : Color.primary)
+        .foregroundStyle(timeColor)
       Text(label.hundredths)
         .foregroundStyle(Color(.tertiaryLabel))
     }
     .font(.system(size: 56, weight: .light))
     .monospacedDigit()
     .kerning(-1)
+  }
+
+  /// 00:00 stays greyed until the take is actually running — the count-in has
+  /// captured nothing yet, so the timer must not read as live.
+  private var timeColor: Color {
+    switch state.status {
+    case .ready, .countingIn: Color(.quaternaryLabel)
+    case .recording, .stopped, .playback: Color.primary
+    }
   }
 
   // MARK: - Tray
@@ -188,17 +198,28 @@ struct CaptureView: View {
       }
 
       labelled(mainLabel) {
-        Button {
-          state.status == .recording ? state.stop() : state.record()
-        } label: {
+        Button(action: mainAction) {
           Circle()
             .strokeBorder(Palette.transportRing, lineWidth: 4)
             .overlay(mainGlyph)
             .frame(width: 66, height: 66)
+            // Each numeral pops in as it lands, the way 8a's beat reads.
+            .animation(.easeOut(duration: 0.22), value: state.countInBeat)
         }
         .disabled(!isMainEnabled)
         .opacity(isMainEnabled ? 1 : 0.35)
+        .accessibilityLabel(mainAccessibilityLabel)
       }
+    }
+  }
+
+  /// Tapping mid-count-in aborts it — the button you just pressed is the one
+  /// counting, so it is also the one that takes it back.
+  private func mainAction() {
+    switch state.status {
+    case .countingIn: state.abortCountIn()
+    case .recording: state.stop()
+    case .ready, .stopped, .playback: state.record()
     }
   }
 
@@ -207,24 +228,39 @@ struct CaptureView: View {
   /// offered while the take is still open; playback never captures.
   private var isMainEnabled: Bool {
     switch state.status {
-    case .ready, .recording: true
+    case .ready, .countingIn, .recording: true
     case .stopped: state.canResume
     case .playback: false
     }
   }
 
+  /// The count-in keeps saying Record: nothing has changed about what the
+  /// button is for, and swapping the word mid-beat would be the jump 1d avoids.
   private var mainLabel: String {
     switch state.status {
-    case .ready: "Record"
+    case .ready, .countingIn: "Record"
     case .recording: "Stop"
     case .stopped, .playback: "Resume"
     }
+  }
+
+  /// A bare numeral tells VoiceOver nothing about what a tap would do.
+  private var mainAccessibilityLabel: String {
+    state.status == .countingIn ? "Stop count-in, \(state.countInBeat)" : mainLabel
   }
 
   @ViewBuilder private var mainGlyph: some View {
     switch state.status {
     case .ready:
       Circle().fill(Palette.accent).frame(width: 51, height: 51)
+    case .countingIn:
+      // 8a: the orange disc becomes the numeral, counting inside the ring.
+      Text("\(state.countInBeat)")
+        .font(.system(size: 28, weight: .semibold))
+        .monospacedDigit()
+        .foregroundStyle(Palette.accent)
+        .id(state.countInBeat)
+        .transition(.opacity.combined(with: .scale(scale: 1.25)))
     case .recording:
       RoundedRectangle(cornerRadius: 9).fill(Palette.accent).frame(width: 26, height: 26)
     case .stopped, .playback:
@@ -270,6 +306,8 @@ private func capturePreview(_ state: CaptureState, createdAt: Date = .now) -> so
 }
 
 #Preview("1b · ready") { capturePreview(CapturePreview.state(.ready)) }
+
+#Preview("8a · counting in") { capturePreview(CapturePreview.state(.countingIn)) }
 
 #Preview("1b · recording") { capturePreview(CapturePreview.state(.recording)) }
 

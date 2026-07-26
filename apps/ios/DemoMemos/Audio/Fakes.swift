@@ -42,6 +42,14 @@ final class FakeAudioRecorder: AudioRecorder {
   func simulateLevel(_ level: Float) { onLevel?(level) }
 }
 
+// MARK: - Count-in ticker
+
+final class FakeCountInTicker: CountInTicker {
+  private(set) var tickCount = 0
+
+  func tick() { tickCount += 1 }
+}
+
 // MARK: - Player
 
 final class FakeAudioPlayer: AudioPlayer {
