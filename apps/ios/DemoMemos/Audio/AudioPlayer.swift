@@ -28,6 +28,9 @@ final class AudioPlayer: NSObject, Playing {
 
   func play(_ url: URL) throws {
     stop()
+    // Swaps the session out of capture's `.measurement` configuration, which
+    // attenuates output and hides Bluetooth routes.
+    try AudioSession.activateForPlayback()
     let player = try AVAudioPlayer(contentsOf: url)
     player.delegate = self
     guard player.play() else {

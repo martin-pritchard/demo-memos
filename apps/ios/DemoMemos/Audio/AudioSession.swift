@@ -3,9 +3,10 @@ import Foundation
 
 /// The only place in the app that touches `AVAudioSession` configuration.
 ///
-/// Record and playback share one category so they cannot fight over the
-/// session. If you find yourself calling `setCategory` anywhere else, extend
-/// this instead.
+/// Capture and playback each activate their own configuration through here —
+/// they want opposite things, so sharing one category means one of them loses.
+/// If you find yourself calling `setCategory` anywhere else, extend this
+/// instead.
 ///
 /// `nonisolated` because the app target defaults to `MainActor` isolation and
 /// none of this is main-actor business — `AVAudioSession` is safe to configure
@@ -97,6 +98,29 @@ nonisolated enum AudioSession {
       throw Failure.unexpectedFormat(granted: granted, wanted: wanted)
     }
     return granted
+  }
+
+  /// Configures and activates the session for playback.
+  ///
+  /// Deliberately *not* `.measurement`. That mode "disables some dynamics
+  /// processing on input and output resulting in a lower output playback level"
+  /// — a price worth paying to capture a raw signal, and pure loss when playing
+  /// one back. Capture and playback want opposite things here, which is why
+  /// this is two functions rather than one shared category.
+  ///
+  /// `.playback` is also what makes AirPods work. Under `.playAndRecord`,
+  /// `allowBluetoothA2DP` "defaults to false", so a paired Bluetooth device
+  /// never appears as an output route at all; under output-only categories it
+  /// is "always implicitly true". `.defaultToSpeaker` compounded it by forcing
+  /// the built-in speaker.
+  static func activateForPlayback() throws {
+    let session = AVAudioSession.sharedInstance()
+    do {
+      try session.setCategory(.playback, mode: .default)
+      try session.setActive(true)
+    } catch {
+      throw Failure.configuration("playback session: \(error.localizedDescription)")
+    }
   }
 
   /// Settings for a 48 kHz / mono / 24-bit linear PCM WAV.
