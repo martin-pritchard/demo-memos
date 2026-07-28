@@ -24,4 +24,4 @@ every commit here.
 
 ---
 
-Native SwiftUI · iOS 26 · [Architecture principles](docs/PRINCIPLES.md) · [Decisions](docs/DECISIONS.md)
+Native SwiftUI · iOS 26 · [Architecture principles](docs/PRINCIPLES.md)
