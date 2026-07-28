@@ -67,6 +67,7 @@ struct RecordingsFolderTests {
 
     let takes = RecordingsFolder.takes(in: folder)
 
-    #expect(takes.map(\.lastPathComponent) == ["take-20260728-090000.wav", "take-20260728-100000.wav"])
+    #expect(
+      takes.map(\.lastPathComponent) == ["take-20260728-090000.wav", "take-20260728-100000.wav"])
   }
 }

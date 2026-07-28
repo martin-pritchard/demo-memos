@@ -33,7 +33,8 @@ nonisolated enum RecordingsFolder {
     let contents =
       (try? FileManager.default.contentsOfDirectory(
         at: folder, includingPropertiesForKeys: nil)) ?? []
-    return contents
+    return
+      contents
       .filter { $0.pathExtension.lowercased() == "wav" }
       .sorted { $0.lastPathComponent < $1.lastPathComponent }
   }

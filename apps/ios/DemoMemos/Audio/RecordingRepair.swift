@@ -98,7 +98,9 @@ nonisolated enum RecordingRepair {
     guard payloadStart <= fileSize else { return .skipped(.noDataChunk) }
 
     // Trailing bytes are only samples if nothing follows the declared payload.
-    if declaredDataSize > 0, try chunkFollows(declaredDataSize, from: payloadStart, in: handle, fileSize: fileSize) {
+    if declaredDataSize > 0,
+      try chunkFollows(declaredDataSize, from: payloadStart, in: handle, fileSize: fileSize)
+    {
       return .skipped(.dataChunkNotLast)
     }
 
