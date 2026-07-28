@@ -168,3 +168,59 @@ instant the finger reverses, rather than paying the overshoot back first. That i
 scroll-view behaviour, and it is the view's, not the reducer's: `DialGesture`
 stays pure and the view re-anchors on the clamped value for the rest of the
 gesture.
+
+### The waveform's clipping bar comes from the prototype, not the handoff (#47)
+
+A bar at or above `0.9` gets a red top segment and a red glow while recording.
+`docs/design/README.md` documents only the token (`clip / hot warning`
+`#FF453A`); the behaviour exists solely in `demo-scene.jsx`, and
+`screen-states.md` flags the gap. #47 resolves it in the prototype's favour and
+to its numbers: the top `36%` of the bar goes red (the JSX's
+`linear-gradient(to top, base 64%, #ff453a 64%)`) with a soft red glow, and it
+appears in `.live` only — a take being reviewed has nothing left to warn about.
+
+Recorded because the alternative reading is defensible: the handoff naming only
+the token could mean the segment was cut and the colour kept for the "a little
+hot — ease back" coaching line, which uses the same red. If that is what was
+meant, the change is deleting one branch in `Waveform.drawDistributed` and
+`WaveformGeometry.clips` with it; the coaching line is unaffected either way.
+
+### The live meter fixes the bar count, the scrub strip fixes the bar width (#47)
+
+`docs/design/README.md` gives one bar geometry — `5pt` wide, `3pt` gap, `8pt`
+step — and one live-meter count: 48 bars. Both cannot hold on a phone: 48 bars
+at an 8pt step need `381pt`, and the Take screen's content width is `354pt`
+(402 less two 24pt margins). The sentence naming the geometry sits inside the
+handoff's *centre-locked playhead* paragraph, and the prototype draws the live
+meter with `flex: 1` bars under a fixed `3pt` gap, so the two are describing
+different things.
+
+So: `.scrub` uses the fixed `5/3/8` geometry and draws only the bars the box can
+show, and `.resting`/`.live` spread exactly 48 bars across whatever width they
+are given (`WaveformGeometry.liveBarWidth`, ~4.4pt a bar at 354). The count is
+what the eye reads on a meter — it is what makes the roll legible as a rate —
+so the width is what gives.
+
+Two consequences worth knowing before changing it. The bar width is now a
+function of the container, so a narrower host (a future compact layout, a
+landscape story that does not yet exist) thins the bars rather than dropping
+them. And the resting line drawn for an empty take uses the distributed geometry
+in every mode, including `.scrub`: an empty take has no playhead to centre, so
+there is nothing for the fixed geometry to be fixed against.
+
+### `Waveform` is `Animatable`, because a `Canvas` does not tween (#47)
+
+`Canvas` re-runs its closure when its inputs change; it does not interpolate
+between two drawings. Without something to interpolate, the handoff's `.2s`
+bloom ease and `40ms` playhead tick would have been dead letters — and honouring
+Reduce Motion, which #44 assigns to this component for the whole epic, would
+have been vacuous: freezing an animation that never ran.
+
+`Waveform` therefore conforms to `Animatable` with an
+`AnimatablePair<progress, enhance>`, so SwiftUI drives those two continuous
+values frame by frame and the `Canvas` redraws against interpolated numbers. The
+bar *levels* are deliberately not animatable: a rolling meter's bars arrive as
+data, one every ~95ms, rather than travelling between two known states, and an
+`[Float]` has no meaningful interpolation when its length changes. Under Reduce
+Motion both animations resolve to `nil` and every value lands rather than
+travels.
