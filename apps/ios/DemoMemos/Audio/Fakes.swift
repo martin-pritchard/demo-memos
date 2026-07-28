@@ -72,6 +72,8 @@ final class FakePlayer: Playing {
   private(set) var playCount = 0
   private(set) var stopCount = 0
   private(set) var playedURLs: [URL] = []
+  /// The last warmth pushed to the player, clamped as the real one clamps.
+  private(set) var lastWarmth: Double = 0
 
   func play(_ url: URL) throws {
     if let playFailure { throw playFailure }
@@ -86,8 +88,20 @@ final class FakePlayer: Playing {
     stopCount += 1
   }
 
+  func setWarmth(_ value: Double) {
+    lastWarmth = min(max(value, 0), 1)
+  }
+
   /// Playback reaching the end of the take.
   func simulateFinished() {
+    guard isPlaying else { return }
+    isPlaying = false
+    onFinish?()
+  }
+
+  /// Playback cut short by a call, Siri, route loss, or media reset — the real
+  /// player fires `onFinish` for all of these, the same as reaching the end.
+  func simulateInterrupted() {
     guard isPlaying else { return }
     isPlaying = false
     onFinish?()

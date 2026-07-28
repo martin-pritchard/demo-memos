@@ -5,6 +5,11 @@ import PackageDescription
 
 let package = Package(
   name: "Core",
+  // `Synchronization.Atomic` (WarmthRenderCore's lock-free dial handoff) needs
+  // macOS 15 / iOS 18. Without an explicit iOS floor SPM builds this at iOS 12
+  // when the app links it, so the floor must be stated. The app itself deploys
+  // iOS 26.5, comfortably above.
+  platforms: [.macOS(.v15), .iOS(.v18)],
   products: [
     // Products define the executables and libraries a package produces, making them visible to other packages.
     .library(

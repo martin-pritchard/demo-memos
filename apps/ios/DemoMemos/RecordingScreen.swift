@@ -13,7 +13,7 @@ import UIKit
 /// feature folder (`docs/PRINCIPLES.md` #8).
 struct RecordingScreen: View {
 
-  let state: CaptureState
+  @Bindable var state: CaptureState
 
   var body: some View {
     VStack(spacing: 24) {
@@ -26,6 +26,14 @@ struct RecordingScreen: View {
         state.playTapped()
       }
       .disabled(!state.canPlay)
+
+      // The one Enhance dial. Functional, unstyled — same precedent as the
+      // buttons above. 0 is a true bypass; the curve is tuned by ear on device.
+      VStack {
+        Text("Enhance")
+        Slider(value: $state.warmth, in: 0...1)
+      }
+      .disabled(state.latestTake == nil)
 
       if let notice = state.notice {
         Text(notice)
@@ -42,6 +50,11 @@ struct RecordingScreen: View {
 
 #Preview("Empty") { RecordingScreen(state: .empty) }
 #Preview("Populated") { RecordingScreen(state: .populated) }
+#Preview("Enhance up") {
+  let state = CaptureState.populated
+  state.warmth = 0.8
+  return RecordingScreen(state: state)
+}
 #Preview("Recording") { RecordingScreen(state: .recording) }
 #Preview("Playing") { RecordingScreen(state: .playing) }
 #Preview("Denied") { RecordingScreen(state: .denied) }

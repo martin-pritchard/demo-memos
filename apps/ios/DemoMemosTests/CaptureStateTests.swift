@@ -181,4 +181,53 @@ struct CaptureStateTests {
     #expect(state.mode == .idle)
     #expect(player.stopCount == 1)
   }
+
+  /// A call mid-playback stops cleanly and returns to idle — the playback analog
+  /// of the recorder keeping its take.
+  @Test func interruptionMidPlaybackReturnsToIdle() async {
+    let take = URL.temporaryDirectory.appending(path: "take.wav")
+    let (state, _, player) = Self.make(latestTake: take)
+    state.playTapped()
+
+    player.simulateInterrupted()
+
+    #expect(state.mode == .idle)
+  }
+
+  // MARK: - Enhance dial
+
+  @Test func warmthForwardsToThePlayer() async {
+    let (state, _, player) = Self.make()
+
+    state.warmth = 0.6
+
+    #expect(player.lastWarmth == 0.6)
+  }
+
+  /// The dial is a character control, and it survives out-of-range writes: the
+  /// value reaching the DSP is always in `0...1`.
+  @Test func warmthReachesTheDSPClamped() async {
+    let (state, _, player) = Self.make()
+
+    state.warmth = 2.0
+    #expect(player.lastWarmth == 1.0)
+
+    state.warmth = -1.0
+    #expect(player.lastWarmth == 0.0)
+  }
+
+  /// Setting the dial before playback is remembered — it is not lost, and it is
+  /// not what starts playback.
+  @Test func warmthSetWhileIdleIsHeldForTheNextPlay() async {
+    let take = URL.temporaryDirectory.appending(path: "take.wav")
+    let (state, _, player) = Self.make(latestTake: take)
+
+    state.warmth = 0.4
+    #expect(state.mode == .idle, "moving the dial does not start playback")
+    #expect(player.lastWarmth == 0.4)
+
+    state.playTapped()
+    #expect(player.playedURLs == [take])
+    #expect(player.lastWarmth == 0.4, "the held value is still what the player has")
+  }
 }
