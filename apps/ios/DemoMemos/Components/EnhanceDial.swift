@@ -54,6 +54,13 @@ struct EnhanceDial: View {
   @State private var anchorValue: Double?
   @State private var anchorTranslation: CGFloat = 0
 
+  /// Alive only for the duration of a drag. SwiftUI resets a `@GestureState`
+  /// when the gesture ends **or is cancelled**, and cancellation is the case
+  /// that matters: `onEnded` never runs for a drag an enclosing scroll view
+  /// steals, so an anchor cleared only there survives into the next touch and
+  /// the value jumps the moment a finger lands.
+  @GestureState private var isDragging = false
+
   var body: some View {
     VStack(spacing: DesignTokens.Spacing.label) {
       label
@@ -103,9 +110,14 @@ struct EnhanceDial: View {
       // The whole track is the grab area, including the gaps between ticks.
       .contentShape(Rectangle())
       .gesture(drag)
-      // The track is fixed geometry. Left to scale, the ticks would collide
-      // with a marker that stayed put.
-      .dynamicTypeSize(...DynamicTypeSize.large)
+      // The one reset path for the anchor, so it covers cancellation as well as
+      // a clean lift.
+      .onChange(of: isDragging) { _, dragging in
+        if !dragging {
+          anchorValue = nil
+          anchorTranslation = 0
+        }
+      }
   }
 
   /// One drawing surface for 41 ticks. Not because 41 views would be slow, but
@@ -168,6 +180,7 @@ struct EnhanceDial: View {
 
   private var drag: some Gesture {
     DragGesture(minimumDistance: 0)
+      .updating($isDragging) { _, dragging, _ in dragging = true }
       .onChanged { gesture in
         let anchor = anchorValue ?? value
         if anchorValue == nil {
@@ -190,10 +203,6 @@ struct EnhanceDial: View {
         }
 
         value = resolved
-      }
-      .onEnded { _ in
-        anchorValue = nil
-        anchorTranslation = 0
       }
   }
 
