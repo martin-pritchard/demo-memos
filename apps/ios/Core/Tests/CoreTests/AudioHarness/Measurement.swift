@@ -50,7 +50,8 @@ func thd(_ buffer: SampleBuffer, fundamental: Double) -> Double? {
   guard !channel.isEmpty else { return nil }
 
   let nyquist = buffer.sampleRate / 2
-  let fundamentalMagnitude = goertzelMagnitude(channel, frequency: fundamental, sampleRate: buffer.sampleRate)
+  let fundamentalMagnitude = goertzelMagnitude(
+    channel, frequency: fundamental, sampleRate: buffer.sampleRate)
   guard fundamentalMagnitude > 0 else { return nil }
 
   var harmonicPower = 0.0
@@ -69,14 +70,19 @@ func thd(_ buffer: SampleBuffer, fundamental: Double) -> Double? {
 /// fixtures are mono, but this keeps the maths honest if a caller passes stereo.
 private func channelZero(of buffer: SampleBuffer) -> [Float] {
   guard buffer.channelCount > 1 else { return buffer.samples }
-  return stride(from: 0, to: buffer.samples.count, by: buffer.channelCount).map { buffer.samples[$0] }
+  return stride(from: 0, to: buffer.samples.count, by: buffer.channelCount).map {
+    buffer.samples[$0]
+  }
 }
 
 /// Goertzel magnitude at one frequency — an O(n) DFT bin, no windowing.
-private func goertzelMagnitude(_ samples: [Float], frequency: Double, sampleRate: Double) -> Double {
+private func goertzelMagnitude(_ samples: [Float], frequency: Double, sampleRate: Double) -> Double
+{
   let omega = 2 * Double.pi * frequency / sampleRate
   let coefficient = 2 * cos(omega)
-  var s0 = 0.0, s1 = 0.0, s2 = 0.0
+  var s0 = 0.0
+  var s1 = 0.0
+  var s2 = 0.0
   for sample in samples {
     s0 = Double(sample) + coefficient * s1 - s2
     s2 = s1

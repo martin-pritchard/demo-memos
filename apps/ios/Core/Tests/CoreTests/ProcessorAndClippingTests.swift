@@ -1,5 +1,6 @@
-import Testing
 import Foundation
+import Testing
+
 @testable import Core
 
 @Suite("Identity processor")
@@ -41,22 +42,25 @@ struct ClippingTests {
 
   @Test("A sample of exactly 1.0 sits at the clip threshold: peakDBFS == 0.0")
   func thresholdAtFullScale() {
-    let buffer = SampleBuffer(sampleRate: 48000, channelCount: 1,
-                              samples: [0.0, 1.0, -0.5, 0.25])
+    let buffer = SampleBuffer(
+      sampleRate: 48000, channelCount: 1,
+      samples: [0.0, 1.0, -0.5, 0.25])
     #expect(peakDBFS(buffer) == 0.0)
   }
 
   @Test("A max |sample| of 1.2 is above the threshold: peakDBFS > 0.0")
   func aboveThreshold() {
-    let buffer = SampleBuffer(sampleRate: 48000, channelCount: 1,
-                              samples: [0.0, -1.2, 0.5])
+    let buffer = SampleBuffer(
+      sampleRate: 48000, channelCount: 1,
+      samples: [0.0, -1.2, 0.5])
     #expect(peakDBFS(buffer) > 0.0)
   }
 
   @Test("A max |sample| of 0.9999 is below the threshold: peakDBFS < 0.0")
   func belowThreshold() {
-    let buffer = SampleBuffer(sampleRate: 48000, channelCount: 1,
-                              samples: [0.0, 0.9999, -0.5])
+    let buffer = SampleBuffer(
+      sampleRate: 48000, channelCount: 1,
+      samples: [0.0, 0.9999, -0.5])
     #expect(peakDBFS(buffer) < 0.0)
   }
 }

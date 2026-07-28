@@ -156,13 +156,13 @@ enum WAVFile {
   }
 }
 
-private extension Data {
-  mutating func append(ascii: String) { append(contentsOf: Array(ascii.utf8)) }
-  mutating func append(u16 value: UInt16) {
+extension Data {
+  fileprivate mutating func append(ascii: String) { append(contentsOf: Array(ascii.utf8)) }
+  fileprivate mutating func append(u16 value: UInt16) {
     append(UInt8(value & 0xFF))
     append(UInt8((value >> 8) & 0xFF))
   }
-  mutating func append(u32 value: UInt32) {
+  fileprivate mutating func append(u32 value: UInt32) {
     append(UInt8(value & 0xFF))
     append(UInt8((value >> 8) & 0xFF))
     append(UInt8((value >> 16) & 0xFF))

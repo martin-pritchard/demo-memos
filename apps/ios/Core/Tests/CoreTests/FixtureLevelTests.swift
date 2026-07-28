@@ -1,5 +1,6 @@
-import Testing
 import Foundation
+import Testing
+
 @testable import Core
 
 // Generated fixtures (Fixtures.*) measured with the harness.

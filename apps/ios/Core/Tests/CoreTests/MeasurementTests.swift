@@ -1,5 +1,6 @@
-import Testing
 import Foundation
+import Testing
+
 @testable import Core
 
 // Measurement math tested against inline-built SampleBuffers, so the
@@ -8,10 +9,12 @@ import Foundation
 struct MeasurementTests {
 
   /// Build a mono sine of the given linear amplitude, inline.
-  private func inlineSine(amplitude: Float,
-                          frequency: Double = 1000,
-                          sampleRate: Double = 48000,
-                          duration: Double = 0.5) -> SampleBuffer {
+  private func inlineSine(
+    amplitude: Float,
+    frequency: Double = 1000,
+    sampleRate: Double = 48000,
+    duration: Double = 0.5
+  ) -> SampleBuffer {
     let count = Int(sampleRate * duration)
     var samples = [Float](repeating: 0, count: count)
     for n in 0..<count {
@@ -31,8 +34,9 @@ struct MeasurementTests {
   @Test("Silence: peak and RMS are -infinity, DC is 0, THD is nil")
   func silence() {
     let count = Int(48000 * 0.5)
-    let buffer = SampleBuffer(sampleRate: 48000, channelCount: 1,
-                              samples: [Float](repeating: 0, count: count))
+    let buffer = SampleBuffer(
+      sampleRate: 48000, channelCount: 1,
+      samples: [Float](repeating: 0, count: count))
     #expect(peakDBFS(buffer) == -Double.infinity)
     #expect(rmsDBFS(buffer) == -Double.infinity)
     #expect(dcOffset(buffer) == 0)
@@ -50,8 +54,9 @@ struct MeasurementTests {
 
   @Test("dcOffset of a constant 0.05 buffer is 0.05")
   func dcOffsetConstant() {
-    let buffer = SampleBuffer(sampleRate: 48000, channelCount: 1,
-                              samples: [Float](repeating: 0.05, count: 1000))
+    let buffer = SampleBuffer(
+      sampleRate: 48000, channelCount: 1,
+      samples: [Float](repeating: 0.05, count: 1000))
     #expect(abs(dcOffset(buffer) - 0.05) <= 1e-6)
   }
 

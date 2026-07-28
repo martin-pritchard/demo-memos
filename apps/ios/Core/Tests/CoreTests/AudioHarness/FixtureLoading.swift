@@ -22,7 +22,9 @@ let committedFixtures: [(name: String, buffer: SampleBuffer)] = [
 /// Reads a committed `.wav` from the test bundle through the pure-Swift reader —
 /// the round-trip the acceptance criteria measure against.
 func loadFixture(_ name: String) throws -> SampleBuffer {
-  guard let url = Bundle.module.url(forResource: name, withExtension: "wav", subdirectory: "Fixtures") else {
+  guard
+    let url = Bundle.module.url(forResource: name, withExtension: "wav", subdirectory: "Fixtures")
+  else {
     throw FixtureError.notFound(name)
   }
   return try WAVFile.read(Data(contentsOf: url))
