@@ -23,9 +23,16 @@ protocol Playing: AnyObject {
 /// players can't give) followed by Apple's reverb (rung 3 — never a hand-rolled
 /// reverb). The graph:
 ///
-///   `AVAudioSourceNode` (reads the preloaded take + runs `WarmthKernel`)
+///   `AVAudioSourceNode` (mono; reads the preloaded take + runs `WarmthKernel`)
 ///     → `AVAudioUnitReverb` (a touch of space; late and parallel, wet-against-dry)
 ///     → `mainMixerNode` → `outputNode`
+///
+/// The reverb's *output* connection is **stereo** (#31): `AVAudioUnitReverb` is a
+/// stereo processor, so a mono take fed into a stereo output bus comes out as a
+/// centred dry signal under a decorrelated stereo wet tail — width on headphones
+/// for free, without touching mono capture or the mono warmth DSP. The dry stays
+/// mono/centred; only the wet field opens up. Everything up to and including the
+/// source stays mono.
 ///
 /// The source node is *both* transport and warmth effect: on `play` the whole
 /// take is decoded to a mono `[Float]` here on the main actor — off the realtime
@@ -86,6 +93,16 @@ final class AudioPlayer: Playing {
       return noErr
     }
 
+    // The reverb feeds the mixer in stereo (#31): mono in, decorrelated stereo
+    // wet out, dry stays centred. `mainMixerNode`/`outputNode` are already stereo,
+    // so only this connection's format changes from the mono capture format.
+    guard
+      let stereoFormat = AVAudioFormat(
+        commonFormat: .pcmFormatFloat32, sampleRate: sampleRate, channels: 2, interleaved: false)
+    else {
+      throw AudioSession.Failure.configuration("Could not build the stereo playback format")
+    }
+
     let engine = AVAudioEngine()
     let source = AVAudioSourceNode(format: format, renderBlock: render)
     // Apple's reverb, after the warmth node. Preset and wet amount are tuned by
@@ -94,8 +111,8 @@ final class AudioPlayer: Playing {
     reverb.loadFactoryPreset(.mediumHall)
     engine.attach(source)
     engine.attach(reverb)
-    engine.connect(source, to: reverb, format: format)
-    engine.connect(reverb, to: engine.mainMixerNode, format: format)
+    engine.connect(source, to: reverb, format: format)  // mono in
+    engine.connect(reverb, to: engine.mainMixerNode, format: stereoFormat)  // stereo wet out
     engine.prepare()
     do {
       try engine.start()
