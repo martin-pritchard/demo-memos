@@ -63,4 +63,16 @@ struct WarmthParametersTests {
       #expect(ceiling < 1)
     }
   }
+
+  @Test("Reverb wet mix is dry at 0, a valid fraction, and never falls")
+  func reverbWetMixRisesFromDry() {
+    #expect(warmthParameters(0).reverbWetMix == 0, "warmth 0 is fully dry — no space")
+    let mixes = sweep.map { warmthParameters($0).reverbWetMix }
+    for mix in mixes {
+      #expect(mix >= 0 && mix <= 1)
+    }
+    for i in 1..<mixes.count {
+      #expect(mixes[i] >= mixes[i - 1], "space folds in with warmth, never recedes")
+    }
+  }
 }
