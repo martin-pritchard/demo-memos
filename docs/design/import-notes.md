@@ -21,6 +21,7 @@ bundle. Imported 2026-07-28 via the `claude_design` MCP.
 | `support.js` | Prototype runtime. Ignore. Verbatim. |
 | `app-icon/*.png` | The three 1024×1024 masters — see below. |
 | `app-icon/icon-export.html` | The CSS source the masters are generated from. Not part of the original bundle; pulled in from the project root as provenance for the re-render below. |
+| `screen-states.md` | Not part of the original bundle. Every distinct state each screen can be in, read out of the files above, plus the states the app needs that the designs don't cover and the places the bundle contradicts itself. Written here so a re-import of the bundle doesn't take the analysis with it. |
 
 The `.dc.html` opens and resolves: its `./support.js`, `./ios-frame.jsx`,
 `./demo-scene.jsx` and `app-icon/*.png` references all point at files present
