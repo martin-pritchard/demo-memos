@@ -60,13 +60,16 @@ struct TransportButton: View {
       }
       .buttonStyle(.plain)
       .accessibilityLabel(appearance.label)
+      // Only the disc dims. The label stays at full contrast — it is still
+      // telling you what the button is for, and dimming it twice reads as two
+      // levels of disabled.
+      .opacity(isEnabled ? 1 : Self.disabledOpacity)
+      .animation(.easeInOut(duration: 0.2), value: isEnabled)
 
       Text(appearance.label)
         .font(DesignTokens.Typography.transportLabel)
         .foregroundStyle(DesignTokens.Palette.textSecondary)
     }
-    .opacity(isEnabled ? 1 : Self.disabledOpacity)
-    .animation(.easeInOut(duration: 0.2), value: isEnabled)
   }
 
   @ViewBuilder private var figure: some View {
