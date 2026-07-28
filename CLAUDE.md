@@ -66,6 +66,10 @@ rebuild), and the waveform (#36, #37).
   brief (tokens, screens, states, motion), `demo-memo.dc.html` the full doc, the
   `.jsx` files HTML/React prototypes. **They are references, not code to port** —
   recreate them in SwiftUI with system components. `app-icon/*.png` ships as-is.
+  `screen-states.md` is the state inventory read out of the bundle — read it
+  before building a screen: it lists the states the designs *don't* cover
+  (permissions, interruptions, failures, save semantics) and where the bundle
+  contradicts itself. Those are open questions, not settled design.
 - `docs/DECISIONS.md` — why the audio calls were made the way they were. Append
   when a choice would otherwise be re-litigated; don't rewrite past entries.
 
