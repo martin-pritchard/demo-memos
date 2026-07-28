@@ -53,21 +53,30 @@ public struct WarmthParameters: Equatable, Sendable {
 /// Map one `warmth` (clamped to `0...1`) to the coordinated set. Pure and
 /// deterministic — no wow, flutter, or modulation lives here or downstream.
 ///
-/// Every coloring term rises with `warmth` along a linear ramp for now; the
-/// final voicing is found by ear against the reference records in Unit 2 (#24),
-/// so this ships a musically sensible starting curve, not a finished one. At
-/// `warmth == 0` every active term is neutral, so the parameters alone describe
-/// a true bypass even before `WarmthProcessor` short-circuits it.
+/// The dial is mapped onto the *usable* part of the sweep: `0…1` covers what
+/// used to be ~33%…100% of travel, so the colouring is active across the whole
+/// length instead of hiding its bottom third near silence. The voicing is still
+/// being found by ear against the reference records under #28. At `warmth == 0`
+/// every active term is neutral, so the parameters alone describe a true bypass
+/// even before `WarmthProcessor` short-circuits it.
 public func warmthParameters(_ warmth: Double) -> WarmthParameters {
   let w = min(max(warmth, 0), 1)
+  // Spread the usable part of the sweep across the whole dial: `0…1` maps onto
+  // what used to be `floor…1` of travel, killing the near-silent bottom third.
+  // `warmth == 0` stays an exact bypass (`c == 0`); just above it the map floors
+  // ~0.6 dB above dry — inaudible — so lifting off zero doesn't click. `shape`
+  // keeps a gentle convexity so it still eases in; `1.0` at the top is unchanged.
+  let floor = 0.50
+  let shape = 2.0
+  let c = w == 0 ? 0 : pow(floor + (1 - floor) * w, shape)
   return WarmthParameters(
-    headBumpFrequency: 90,
-    headBumpGainDB: 3.5 * w,
+    headBumpFrequency: 120,
+    headBumpGainDB: 7.8 * c,
     headBumpQ: 0.7,
     highShelfFrequency: 3500,
-    highShelfGainDB: -4.0 * w,
-    drive: 2.2 * w,
-    makeupGainDB: 0.8 * w,
+    highShelfGainDB: -10.4 * c,
+    drive: 2.2 * c,
+    makeupGainDB: 0.8 * c,
     ceiling: 0.9772  // ~ −0.2 dBFS
   )
 }
