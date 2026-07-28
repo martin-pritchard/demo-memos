@@ -187,7 +187,8 @@ private struct TransportGallery: View {
 
   private let pairs: [Pair] = [
     .init(id: "4.1 ready", left: .play, leftEnabled: false, right: .record, rightEnabled: true),
-    .init(id: "4.2 countin", left: .play, leftEnabled: false, right: .countIn(3), rightEnabled: true),
+    .init(
+      id: "4.2 countin", left: .play, leftEnabled: false, right: .countIn(3), rightEnabled: true),
     .init(id: "4.3 recording", left: .play, leftEnabled: false, right: .stop, rightEnabled: true),
     .init(id: "4.4 stopped", left: .play, leftEnabled: true, right: .resume, rightEnabled: true),
     .init(id: "4.5 playing", left: .pause, leftEnabled: true, right: .resume, rightEnabled: false),

@@ -82,7 +82,9 @@ private struct CoachingGallery: View {
               .frame(maxWidth: .infinity, alignment: .leading)
               .overlay(
                 Rectangle()
-                  .stroke(DesignTokens.Palette.separator, style: StrokeStyle(lineWidth: 1, dash: [2, 2]))
+                  .stroke(
+                    DesignTokens.Palette.separator,
+                    style: StrokeStyle(lineWidth: 1, dash: [2, 2]))
               )
           }
         }
