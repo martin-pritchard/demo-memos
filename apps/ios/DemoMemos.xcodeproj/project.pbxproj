@@ -231,21 +231,6 @@
 		};
 /* End PBXProject section */
 
-/* Begin XCLocalSwiftPackageReference section */
-		13C0DE0000000000000000C0 /* XCLocalSwiftPackageReference "Core" */ = {
-			isa = XCLocalSwiftPackageReference;
-			relativePath = Core;
-		};
-/* End XCLocalSwiftPackageReference section */
-
-/* Begin XCSwiftPackageProductDependency section */
-		13C0DE0000000000000000C1 /* Core */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 13C0DE0000000000000000C0 /* XCLocalSwiftPackageReference "Core" */;
-			productName = Core;
-		};
-/* End XCSwiftPackageProductDependency section */
-
 /* Begin PBXResourcesBuildPhase section */
 		135F36D13018C60E00943218 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
@@ -615,6 +600,21 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		13C0DE0000000000000000C0 /* XCLocalSwiftPackageReference "Core" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Core;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		13C0DE0000000000000000C1 /* Core */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 13C0DE0000000000000000C0 /* XCLocalSwiftPackageReference "Core" */;
+			productName = Core;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 135F36CB3018C60E00943218 /* Project object */;
 }
