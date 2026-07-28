@@ -78,6 +78,101 @@ private struct Biquad {
   }
 }
 
+/// A gentle feed-forward leveler (#32): slow program levelling, as opposed to the
+/// fast harmonic waveshaping `drive` already does. It pulls loud passages down
+/// and lifts quiet detail — sustain, finger noise, breath, the room — which is
+/// what reads as intimacy on the reference records.
+///
+/// Internal to the warmth chain, and hand-written rather than Apple's
+/// `AUDynamicsProcessor` for two structural reasons (#32): an `AVAudioUnit` is a
+/// graph *node*, so it could only sit after the whole source node — i.e. after
+/// `ceiling`, inverting "peak control last" — and an AU stage would be invisible
+/// to the offline guardrails that measure the loudness risk this stage creates.
+///
+/// Peak-domain detector, no lookahead: lookahead means latency and a delay line,
+/// and neither is worth it for a stage tuned to be inaudible. `process` is
+/// branch-light, allocation-free and `libm`-only, per `docs/PRINCIPLES.ios.md` #1.
+///
+/// **The detector attacks instantly and the *gain* carries the ballistics.** The
+/// obvious alternative — smoothing the envelope with the attack time and reading
+/// the gain straight off it — quietly breaks the pivot guarantee. A one-pole
+/// envelope with a 20 ms attack cannot track a waveform's peak: on a sine it
+/// settles ~1 dB *below* it, by an amount that depends on the material's crest
+/// factor. `levelerMakeupGainDB` is derived in the level domain, so that gap
+/// lands straight in the output — measured +0.5 dB at full warmth, against a
+/// ±1 dB guardrail. Detecting the peak exactly and smoothing the gain instead
+/// makes the pivot neutrality hold for real, and is the textbook feed-forward
+/// topology besides: transients still pass, because it is the *gain* that takes
+/// the attack time to come down.
+private struct Leveler {
+  private var attackCoefficient: Float = 1
+  private var releaseCoefficient: Float = 1
+  /// Envelope level at which gain reduction begins, linear.
+  private var threshold: Float = 1
+  /// `1/ratio − 1`, the exponent that turns an over-threshold *ratio* straight
+  /// into a linear gain — so the whole gain computation is one `powf`, with no
+  /// logs and no dB round trip in the per-sample path.
+  private var exponent: Float = 0
+  private var makeup: Float = 1
+
+  /// Detector state: rises to the peak instantly, falls at the release time, so
+  /// its steady-state reading *is* the signal's peak.
+  private var envelope: Float = 0
+  /// The smoothed gain — this is what the attack and release times shape, and
+  /// what lets a transient through before the stage reacts to it.
+  private var gain: Float = 1
+
+  /// Below this the envelope snaps to zero. Long silences otherwise decay toward
+  /// denormals, which are punishingly slow on some cores — a realtime-thread
+  /// hazard that never shows up in an offline test.
+  private let denormalFloor: Float = 1e-12
+
+  mutating func update(_ parameters: WarmthParameters, sampleRate: Double) {
+    attackCoefficient = Self.coefficient(seconds: parameters.levelerAttack, sampleRate: sampleRate)
+    releaseCoefficient = Self.coefficient(
+      seconds: parameters.levelerRelease, sampleRate: sampleRate)
+    threshold = Float(pow(10, parameters.levelerThresholdDB / 20))
+    exponent = Float(1 / parameters.levelerRatio - 1)
+    makeup = Float(pow(10, parameters.levelerMakeupGainDB / 20))
+  }
+
+  /// Clear detector and gain. Deliberately *not* called from `update`: a dial
+  /// move must not restart either, or every nudge clicks.
+  mutating func reset() {
+    envelope = 0
+    gain = 1
+  }
+
+  /// One sample in, one out. At `ratio == 1` the exponent is `0`, so
+  /// `powf(_, 0) == 1` holds the target at `1`; `gain` starts at `1` and the
+  /// smoothing moves it nowhere, and the make-up is `1`. The stage is then an
+  /// *exact* identity — it bypasses itself at the bottom of the dial without
+  /// needing a branch to do it.
+  mutating func process(_ x: Float) -> Float {
+    let magnitude = abs(x)
+    // Instant attack, released at the release time: between two peaks of a tone
+    // this decays by a fraction of a dB, so the envelope reads the true peak.
+    if magnitude > envelope {
+      envelope = magnitude
+    } else {
+      envelope += (magnitude - envelope) * releaseCoefficient
+    }
+    if envelope < denormalFloor { envelope = 0 }
+
+    let target = envelope > threshold ? powf(envelope / threshold, exponent) : 1
+    // Asymmetric: quick to pull the gain down, slow to let it back up — the
+    // asymmetry is what makes it ride the performance instead of pumping on it.
+    gain += (target - gain) * (target < gain ? attackCoefficient : releaseCoefficient)
+    return x * gain * makeup
+  }
+
+  /// One-pole time constant → per-sample coefficient.
+  private static func coefficient(seconds: Double, sampleRate: Double) -> Float {
+    guard seconds > 0, sampleRate > 0 else { return 1 }
+    return Float(1 - exp(-1 / (seconds * sampleRate)))
+  }
+}
+
 /// The warmth DSP as an allocation-free, in-place kernel over one mono channel
 /// — the seam Unit 2 (#24) hosts inside a realtime render block. Setup (filter
 /// state, coefficients) is preallocated in `init`/`update`; `process` only reads
@@ -91,14 +186,27 @@ private struct Biquad {
 ///    about to add;
 /// 3. **character saturation** `tanh(drive · x) / drive` — unity small-signal
 ///    gain, odd (no DC), harmonics rising with drive;
-/// 4. **make-up** — level-match;
-/// 5. **ceiling** `A · tanh(x / A)` — odd, and bounded by `A < 1` for *any*
-///    input, so the output can never clip whatever the upstream EQ did.
+/// 4. **make-up** — level-match, restoring what the saturator took off;
+/// 5. **leveler** — slow program levelling (#32). After the EQ so it reacts to
+///    the level the EQ actually set, and after the saturator so it sees rounded
+///    transients rather than raw spikes.
+///
+///    It sits after the make-up, not before, and that ordering is load-bearing:
+///    the leveler's net gain works out to `(pivot − input)·(1 − 1/ratio)`, so it
+///    is neutral only when its input sits *at* `levelerPivotDBFS`. Behind the
+///    make-up it would see the saturator's ~0.8 dB loss instead, and compensate
+///    for it a second time — the same loss corrected twice, which put a −12 dBFS
+///    tone 1.3 dB up and broke the ±1 dB loudness guardrail. A static
+///    level-changer belongs ahead of the stage that reacts to level;
+/// 6. **ceiling** `A · tanh(x / A)` — odd, and bounded by `A < 1` for *any*
+///    input, so the output can never clip whatever the upstream EQ did. Last, so
+///    nothing downstream can break the guarantee.
 public struct WarmthKernel {
   private let sampleRate: Double
   private var headBump = Biquad()
   private var highShelf = Biquad()
   private var drive = 0.0
+  private var leveler = Leveler()
   private var makeup: Float = 1
   private var ceiling: Float = 1
 
@@ -121,14 +229,17 @@ public struct WarmthKernel {
       gainDB: parameters.highShelfGainDB,
       sampleRate: sampleRate)
     drive = parameters.drive
+    leveler.update(parameters, sampleRate: sampleRate)
     makeup = Float(pow(10, parameters.makeupGainDB / 20))
     ceiling = Float(parameters.ceiling)
   }
 
-  /// Clear filter memory. Call when starting a fresh signal.
+  /// Clear filter and envelope memory. Call when starting a fresh signal, so a
+  /// new take does not begin part-way into the last one's gain reduction.
   public mutating func reset() {
     headBump.reset()
     highShelf.reset()
+    leveler.reset()
   }
 
   /// Process one mono channel in place. Allocation-free.
@@ -144,6 +255,7 @@ public struct WarmthKernel {
         x = Float(tanh(drive * Double(x)) / drive)
       }
       x *= makeup
+      x = leveler.process(x)
       x = ceiling * Float(tanh(Double(x) / Double(ceiling)))
       samples[i] = x
     }

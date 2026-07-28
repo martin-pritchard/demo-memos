@@ -91,6 +91,33 @@ enum Fixtures {
     return SampleBuffer(sampleRate: sampleRate, channelCount: channelCount, samples: samples)
   }
 
+  /// Concatenated tone segments, each `secondsEach` long, at the given peak
+  /// levels in order — the dynamic fixture a leveler needs. Every other fixture
+  /// here is steady-state, and a steady signal tells you nothing about a
+  /// compressor: gain reduction only shows up when the level *changes*.
+  ///
+  /// Each segment restarts the phase at zero and holds a whole number of cycles
+  /// at the default 1 kHz / 48 kHz / 0.5 s, so the level steps land exactly on a
+  /// zero crossing. The step is then a pure amplitude change with no phase
+  /// discontinuity — the fixture measures the leveler, not a click it created.
+  static func levelSteps(
+    dbFS: [Double],
+    frequency: Double = 1000,
+    sampleRate: Double = 48000,
+    channelCount: Int = 1,
+    secondsEach: Double = 0.5
+  ) -> SampleBuffer {
+    var samples: [Float] = []
+    for level in dbFS {
+      let segment = tone(
+        amplitude: Float(pow(10, level / 20)), dc: 0, frequency: frequency,
+        sampleRate: sampleRate, channelCount: channelCount, duration: secondsEach
+      )
+      samples.append(contentsOf: segment.samples)
+    }
+    return SampleBuffer(sampleRate: sampleRate, channelCount: channelCount, samples: samples)
+  }
+
   // MARK: - Internals
 
   private static func frameCount(sampleRate: Double, duration: Double) -> Int {

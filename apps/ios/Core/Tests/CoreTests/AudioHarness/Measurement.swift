@@ -28,6 +28,31 @@ func rmsDBFS(_ buffer: SampleBuffer) -> Double {
   return 20 * log10(rms)
 }
 
+/// Root-mean-square level over a time window, in dBFS. The window is clamped to
+/// the buffer, so a range running past the end measures what is there rather
+/// than trapping. `−∞` for a silent or empty window.
+///
+/// This exists so one segment of a `levelSteps` fixture can be measured on its
+/// own: a compressor's envelope needs time to settle after a level change, so a
+/// useful measurement is taken *inside* a segment, past the transition.
+func rmsDBFS(_ buffer: SampleBuffer, seconds: Range<Double>) -> Double {
+  let channelCount = max(buffer.channelCount, 1)
+  let frames = buffer.samples.count / channelCount
+  let firstFrame = max(0, Int((seconds.lowerBound * buffer.sampleRate).rounded()))
+  let lastFrame = min(frames, Int((seconds.upperBound * buffer.sampleRate).rounded()))
+  guard firstFrame < lastFrame else { return -.infinity }
+
+  var sumOfSquares = 0.0
+  for index in (firstFrame * channelCount)..<(lastFrame * channelCount) {
+    let value = Double(buffer.samples[index])
+    sumOfSquares += value * value
+  }
+  let count = (lastFrame - firstFrame) * channelCount
+  let rms = (sumOfSquares / Double(count)).squareRoot()
+  guard rms > 0 else { return -.infinity }
+  return 20 * log10(rms)
+}
+
 /// The linear mean of every sample — the raw DC bias, not a level. `0` for an
 /// empty buffer. Kept linear on purpose: callers that want it in dBFS take the
 /// log themselves, and a signed bias has no dB.
