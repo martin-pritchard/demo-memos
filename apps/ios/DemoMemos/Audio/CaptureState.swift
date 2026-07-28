@@ -137,8 +137,8 @@ final class CaptureState {
       return "Could not start recording: \(message)"
     case .unexpectedFormat(let granted, let wanted):
       return """
-        This route granted \(Int(granted.sampleRate)) Hz / \(granted.inputChannels) ch, \
-        but takes are \(Int(wanted.sampleRate)) Hz / \(wanted.inputChannels) ch. \
+        This route runs at \(Int(granted.sampleRate)) Hz, but takes are \
+        \(Int(wanted.sampleRate)) Hz. Recording would resample. \
         Not recording rather than saving something else.
         """
     }

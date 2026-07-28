@@ -50,21 +50,50 @@ nonisolated enum AudioSession {
   @discardableResult
   static func activateForCapture() throws -> Grant {
     let session = AVAudioSession.sharedInstance()
-    do {
+
+    // Each step is named so a failure says which call broke rather than leaving
+    // a bare OSStatus to guess at.
+    func step(_ name: String, _ work: () throws -> Void) throws {
+      do {
+        try work()
+      } catch {
+        throw Failure.configuration("\(name): \(error.localizedDescription)")
+      }
+    }
+
+    try step("setCategory") {
       try session.setCategory(.playAndRecord, mode: .measurement, options: [.defaultToSpeaker])
-      try session.setPreferredSampleRate(sampleRate)
-      try session.setPreferredInputNumberOfChannels(channelCount)
-      // A notification banner should not end a take.
-      try? session.setPrefersNoInterruptionsFromSystemAlerts(true)
-      try session.setActive(true)
-    } catch {
-      throw Failure.configuration(error.localizedDescription)
+    }
+
+    // Activate *before* asking for a format. Both preferred setters below apply
+    // "to the current route", and on a device there is no route until the
+    // session is active — calling them first returns OSStatus -50 (paramErr).
+    // The simulator tolerates the wrong order, so this only shows up on hardware.
+    try step("setActive") { try session.setActive(true) }
+
+    // A notification banner should not end a take.
+    try? session.setPrefersNoInterruptionsFromSystemAlerts(true)
+
+    try step("setPreferredSampleRate") { try session.setPreferredSampleRate(sampleRate) }
+
+    // Asking for more channels than the route has is also -50, so check first.
+    if session.maximumInputNumberOfChannels >= channelCount {
+      try step("setPreferredInputNumberOfChannels") {
+        try session.setPreferredInputNumberOfChannels(channelCount)
+      }
     }
 
     let granted = Grant(
       sampleRate: session.sampleRate,
       inputChannels: session.inputNumberOfChannels)
-    guard granted == wanted else {
+
+    // Only the sample rate is a hard failure. A rate we did not ask for means
+    // the capture path resamples, which is the thing `.measurement` and 48 kHz
+    // exist to avoid. The route's channel count is not the file's channel
+    // count — `AVNumberOfChannelsKey` makes the take mono whatever the hardware
+    // exposes — so refusing to record because a mic reports two channels would
+    // block capture to enforce something already guaranteed elsewhere.
+    guard granted.sampleRate == sampleRate else {
       throw Failure.unexpectedFormat(granted: granted, wanted: wanted)
     }
     return granted
