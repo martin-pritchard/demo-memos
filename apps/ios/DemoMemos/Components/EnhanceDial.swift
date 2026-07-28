@@ -80,7 +80,9 @@ struct EnhanceDial: View {
       // scaling with the text beside it, which a fixed 18pt size would not.
       Image(systemName: "wand.and.stars")
         .imageScale(.large)
-      Text("Enhance · \(Tone.name(for: value))")
+      // Non-breaking space before the separator: at the accessibility sizes the
+      // label wraps, and a "·" left to start the second line reads as a bullet.
+      Text("Enhance\u{00A0}· \(Tone.name(for: value))")
     }
     .font(DesignTokens.Typography.enhanceLabel)
     // The bright amber loses contrast as text on a light page; this is exactly
