@@ -8,11 +8,26 @@ code in this repository.
 Voice Memos for song ideas: one-tap capture, a single **Enhance** dial, and a
 list of takes. SwiftUI, iPhone only. See `README.md` for the product framing.
 
-**The app is currently a bare Xcode template.** `feat(ios)!: rebuild the Xcode
-project from scratch` (#14) reset it to `DemoMemosApp.swift` + `ContentView.swift`
-and added an empty `Core` package. The features described in the README are the
-target, not the current state — there is no capture flow, no store, no audio code
-in the tree. Build them; don't assume they exist.
+**Current state: a working capture → playback loop behind a deliberately
+unstyled screen.** One take at a time, held as a file URL; the README describes
+the finished product, not the tree. What exists today:
+
+- **Capture** — `AudioRecorder` writes 48 kHz mono 24-bit linear PCM WAV through
+  `AVAudioRecorder` (#18). `AudioSession` is the only place that calls
+  `setCategory`. `RecordingRepair` rebuilds the RIFF header of a take that a
+  jetsam kill left unfinalised.
+- **Enhance** — real on playback (#24, #22, #28, #31, #32). `AudioPlayer` runs an
+  `AVAudioEngine` graph: `AVAudioSourceNode` (mono, hosting `Core`'s
+  `WarmthRenderCore`) → `AVAudioUnitReverb` (stereo output bus, so the wet field
+  widens while the dry stays centred) → `mainMixerNode`. The warmth DSP itself —
+  bells, shelf, drive, leveler, ceiling — is pure Swift in `Core`, tested offline
+  against WAV fixtures.
+- **Screen** — `RecordingScreen`: a Record button, a Play button, and a `Slider`
+  for Enhance. Unstyled on purpose; `docs/design/` is the target.
+
+**Not built — don't assume these exist:** the Demos list, take persistence,
+naming, share, onboarding, count-in (it shipped in #12 and was lost to the #14
+rebuild), and the waveform (#36, #37).
 
 ## Layout
 
@@ -20,10 +35,19 @@ in the tree. Build them; don't assume they exist.
   - `DemoMemos.xcodeproj`, scheme `DemoMemos`. Targets: `DemoMemos`,
     `DemoMemosTests` (Swift Testing), `DemoMemosUITests` (XCTest).
     iOS 26.5 deployment target, Swift 5 language mode.
+  - `DemoMemos/Audio/` — the audio seams and the state machine the screen binds
+    to. Imports `AVFAudio` but no UI framework. Every seam ships both halves
+    (`docs/PRINCIPLES.ios.md` #3); the fakes live in `Fakes.swift`, in the app
+    target rather than the test bundle so `#Preview` can reach them.
+  - `DemoMemos/RecordingScreen.swift` — the only screen, beside the composition
+    root in `DemoMemosApp.swift`. One screen does not yet earn a feature folder.
   - `Core/` — local SPM package, scheme `Core`, Swift 6 language mode. This is
-    the UI-free core (`docs/PRINCIPLES.md` #3): domain models, persistence,
-    audio engine code. **It must not import SwiftUI or UIKit** — that boundary
-    is what keeps it testable with `swift test`, no simulator.
+    the UI-free core (`docs/PRINCIPLES.md` #3). Today: `SampleBuffer`, the
+    `AudioProcessor` seam, and the warmth chain (`WarmthParameters`,
+    `WarmthProcessor`, `WarmthRenderCore`), plus an offline WAV harness and
+    fixtures under `Tests/`. Domain models and persistence will land here too.
+    **It must not import SwiftUI or UIKit** — that boundary is what keeps it
+    testable with `swift test`, no simulator.
   - `Config/` — `Shared.xcconfig` is the target's `baseConfigurationReference`
     and holds no identity; it `#include?`s the gitignored `Local.xcconfig`.
 - `apps/web` — placeholder. No stack chosen, no manifest, `apps/web/CLAUDE.md`
@@ -38,6 +62,12 @@ in the tree. Build them; don't assume they exist.
 - `docs/SECURITY.md` — secret-handling rules. Read before adding any credential,
   key, or `.env`; the "a key in an iOS binary is not secret" section is a real
   architectural constraint, not boilerplate.
+- `docs/design/` — the design handoff bundle: `README.md` is the implementation
+  brief (tokens, screens, states, motion), `demo-memo.dc.html` the full doc, the
+  `.jsx` files HTML/React prototypes. **They are references, not code to port** —
+  recreate them in SwiftUI with system components. `app-icon/*.png` ships as-is.
+- `docs/DECISIONS.md` — why the audio calls were made the way they were. Append
+  when a choice would otherwise be re-litigated; don't rewrite past entries.
 
 ## Commands
 
@@ -84,7 +114,10 @@ The pre-commit hook fails closed: no gitleaks, no commit. This repo is public.
 Placement rules live in `docs/PRINCIPLES.md` — read it before creating or moving
 files. Swift-specific rules are in `docs/PRINCIPLES.ios.md`.
 
-Seam and definition-of-done rules live in the `sdlc:build-rules` skill.
+Seam and definition-of-done rules live in the `sdlc:build-rules` skill. Anything
+touching capture, playback, the Enhance dial or `apps/ios/DemoMemos/Audio/` goes
+through the `ios-audio` skill (checked in at `.claude/skills/ios-audio/`) — it
+carries the effect-ladder reasoning the `DECISIONS.md` entries lean on.
 
 Merges are squash-only — the PR title and body become the commit, so they follow
 Conventional Commits like everything else.
