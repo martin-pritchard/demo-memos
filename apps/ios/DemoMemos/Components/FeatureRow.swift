@@ -23,8 +23,13 @@ struct FeatureRow: View {
     HStack(alignment: .top, spacing: DesignTokens.Spacing.icon) {
       Image(systemName: symbol)
         .font(.system(size: column * 0.74))
-        .foregroundStyle(DesignTokens.Palette.accent)
+        // The accent as a glyph takes the deep variant, which is what keeps it
+        // legible on the light page (see `DesignTokens.Palette.accentText`).
+        .foregroundStyle(DesignTokens.Palette.accentText)
         .frame(width: column)
+        // Decorative: the title beside it already says what the feature is, and
+        // combined into the row the symbol's own name would be read aloud.
+        .accessibilityHidden(true)
 
       VStack(alignment: .leading, spacing: DesignTokens.Spacing.hairline) {
         Text(title)

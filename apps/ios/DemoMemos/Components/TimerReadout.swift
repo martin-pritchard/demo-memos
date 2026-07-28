@@ -32,6 +32,9 @@ struct TimerReadout: View {
     // (`DesignTokens.Typography.timer` documents the scaling opt-in for a call
     // site that wants it).
     .accessibilityElement(children: .combine)
+    // Minutes and seconds only. The hundredths change a hundred times a second,
+    // so announcing them would leave VoiceOver reciting a field that is already
+    // stale by the time the sentence ends.
     .accessibilityLabel(Text(parts.major))
   }
 

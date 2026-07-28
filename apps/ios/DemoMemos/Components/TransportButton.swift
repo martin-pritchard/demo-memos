@@ -54,12 +54,11 @@ struct TransportButton: View {
           figure
         }
         .frame(width: Self.diameter, height: Self.diameter)
-        // The figure is a control, not text: it holds its size while the label
-        // below it scales with Dynamic Type.
         .contentShape(Circle())
       }
       .buttonStyle(.plain)
       .accessibilityLabel(appearance.label)
+      .accessibilityValue(countInValue)
       // Only the disc dims. The label stays at full contrast — it is still
       // telling you what the button is for, and dimming it twice reads as two
       // levels of disabled.
@@ -69,7 +68,15 @@ struct TransportButton: View {
       Text(appearance.label)
         .font(DesignTokens.Typography.transportLabel)
         .foregroundStyle(DesignTokens.Palette.textSecondary)
+        // The button already carries this as its accessibility label; left
+        // visible to VoiceOver it would be announced a second time.
+        .accessibilityHidden(true)
     }
+  }
+
+  /// The remaining beat, so a count-in is audible as well as visible.
+  private var countInValue: Text {
+    if case .countIn(let beat) = role { Text("\(beat)") } else { Text("") }
   }
 
   @ViewBuilder private var figure: some View {
@@ -88,6 +95,11 @@ struct TransportButton: View {
       Text(numeral)
         .font(DesignTokens.Typography.countIn)
         .foregroundStyle(DesignTokens.Palette.accent)
+        // Capped at the default size. The numeral is part of a fixed-diameter
+        // control, and `Typography.countIn` is a Dynamic Type style — left to
+        // scale, a two-digit beat overruns the ring at the accessibility sizes
+        // while the 66pt frame around it stays put.
+        .dynamicTypeSize(...DynamicTypeSize.large)
         // A new beat is a new view, so the transition runs per beat: the
         // handoff's `scale(1.25) → 1` with a fade, one second each.
         .id(numeral)
@@ -98,7 +110,10 @@ struct TransportButton: View {
     case .symbol(let name, let scale):
       Image(systemName: name)
         .font(.system(size: Self.diameter * scale))
-        .foregroundStyle(DesignTokens.Palette.accent)
+        // `accentText`, not `accent`: a glyph sitting on an `accent @ 0.14`
+        // fill is exactly the case the deep variant exists for — the bright
+        // amber loses its contrast on a light page.
+        .foregroundStyle(DesignTokens.Palette.accentText)
     }
   }
 }
