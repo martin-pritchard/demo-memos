@@ -10,9 +10,34 @@ import SwiftUI
 @main
 struct DemoMemosApp: App {
 
+  /// The one place dependencies are constructed (`docs/PRINCIPLES.md` #6).
+  @State private var state = DemoMemosApp.makeCaptureState()
+
   var body: some Scene {
     WindowGroup {
-      ContentView()
+      RecordingScreen(state: state)
     }
+  }
+
+  @MainActor
+  private static func makeCaptureState() -> CaptureState {
+    let folder = (try? RecordingsFolder.defaultURL()) ?? URL.temporaryDirectory
+
+    // Before anything reads the folder: a take that was interrupted by a jetsam
+    // kill still has its samples on disk but a header claiming the length it had
+    // when recording started. Rewriting that header here is what makes the
+    // no-corrupt-files promise hold for the background case, which is the case
+    // it is most likely to be tested by.
+    for (url, result) in RecordingRepair.repairAll(in: folder) {
+      if case .success(.repaired(let bytes)) = result {
+        print("Recovered \(url.lastPathComponent): declared \(bytes) bytes of samples")
+      }
+    }
+
+    return CaptureState(
+      recorder: AudioRecorder(),
+      player: AudioPlayer(),
+      folder: folder,
+      latestTake: RecordingsFolder.takes(in: folder).last)
   }
 }
