@@ -75,13 +75,30 @@ struct WarmthProcessorTests {
     for warmth in [0, 0.25, 0.5, 0.75, 1.0] as [Double] {
       let processor = WarmthProcessor(warmth: warmth)
 
+      // A DC-free input must come out DC-free. This is the assertion that
+      // actually catches a stage inventing an offset, and it stays exact.
       let sine = Fixtures.sine(dbFS: -12)
       let sineOut = processor.process(sine)
       #expect(abs(dcOffset(sineOut) - dcOffset(sine)) <= 1e-4)
 
+      // The noise fixture carries a small offset of its own (~−0.0012: PRNG
+      // sampling noise at this length, not a property anyone chose). Comparing
+      // input and output DC directly only worked while every stage had unity
+      // gain — the leveler (#32) applies a *level-dependent* gain, so a
+      // pre-existing offset is rescaled rather than passed through. DC is a
+      // low-level component, so it rides the gain the leveler gives low-level
+      // content: measured ~1.22× at full warmth.
+      //
+      // Bounding it by the chain's small-signal gain keeps the guardrail honest
+      // — a chain that *invented* DC would blow past a bound tied to the input's
+      // own offset — without asserting a unity-gain property this chain no
+      // longer has. See `docs/DECISIONS.md`.
+      let parameters = warmthParameters(warmth)
+      let smallSignalGain = pow(
+        10, (parameters.levelerMakeupGainDB + parameters.makeupGainDB) / 20)
       let noise = Fixtures.whiteNoise(rmsDBFS: -12)
       let noiseOut = processor.process(noise)
-      #expect(abs(dcOffset(noiseOut) - dcOffset(noise)) <= 1e-4)
+      #expect(abs(dcOffset(noiseOut)) <= abs(dcOffset(noise)) * smallSignalGain + 1e-4)
     }
   }
 

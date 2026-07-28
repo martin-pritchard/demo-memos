@@ -78,6 +78,75 @@ private struct Biquad {
   }
 }
 
+/// A gentle feed-forward leveler (#32): slow program levelling, as opposed to the
+/// fast harmonic waveshaping `drive` already does. It pulls loud passages down
+/// and lifts quiet detail — sustain, finger noise, breath, the room — which is
+/// what reads as intimacy on the reference records.
+///
+/// Internal to the warmth chain, and hand-written rather than Apple's
+/// `AUDynamicsProcessor` for two structural reasons (#32): an `AVAudioUnit` is a
+/// graph *node*, so it could only sit after the whole source node — i.e. after
+/// `ceiling`, inverting "peak control last" — and an AU stage would be invisible
+/// to the offline guardrails that measure the loudness risk this stage creates.
+///
+/// Peak-domain detector, no lookahead: lookahead means latency and a delay line,
+/// and neither is worth it for a stage tuned to be inaudible. `process` is
+/// branch-light, allocation-free and `libm`-only, per `docs/PRINCIPLES.ios.md` #1.
+private struct Leveler {
+  private var attackCoefficient: Float = 1
+  private var releaseCoefficient: Float = 1
+  /// Envelope level at which gain reduction begins, linear.
+  private var threshold: Float = 1
+  /// `1/ratio − 1`, the exponent that turns an over-threshold *ratio* straight
+  /// into a linear gain — so the whole gain computation is one `powf`, with no
+  /// logs and no dB round trip in the per-sample path.
+  private var exponent: Float = 0
+  private var makeup: Float = 1
+
+  /// The only state that survives a sample. Deliberately *not* cleared by
+  /// `update`: a dial move must not restart the envelope, or every nudge clicks.
+  private var envelope: Float = 0
+
+  /// Below this the envelope snaps to zero. Long silences otherwise decay toward
+  /// denormals, which are punishingly slow on some cores — a realtime-thread
+  /// hazard that never shows up in an offline test.
+  private let denormalFloor: Float = 1e-12
+
+  mutating func update(_ parameters: WarmthParameters, sampleRate: Double) {
+    attackCoefficient = Self.coefficient(seconds: parameters.levelerAttack, sampleRate: sampleRate)
+    releaseCoefficient = Self.coefficient(
+      seconds: parameters.levelerRelease, sampleRate: sampleRate)
+    threshold = Float(pow(10, parameters.levelerThresholdDB / 20))
+    exponent = Float(1 / parameters.levelerRatio - 1)
+    makeup = Float(pow(10, parameters.levelerMakeupGainDB / 20))
+  }
+
+  mutating func reset() {
+    envelope = 0
+  }
+
+  /// One sample in, one out. At `ratio == 1` the exponent is `0` and the make-up
+  /// is `1`, so `powf(_, 0) == 1` makes this an *exact* identity — the stage
+  /// bypasses itself at the bottom of the dial without needing a branch to do it.
+  mutating func process(_ x: Float) -> Float {
+    let magnitude = abs(x)
+    // Asymmetric one-pole: fast to catch a rise, slow to let go — the asymmetry
+    // is what makes it ride the performance instead of pumping on it.
+    let coefficient = magnitude > envelope ? attackCoefficient : releaseCoefficient
+    envelope += (magnitude - envelope) * coefficient
+    if envelope < denormalFloor { envelope = 0 }
+
+    guard envelope > threshold else { return x * makeup }
+    return x * powf(envelope / threshold, exponent) * makeup
+  }
+
+  /// One-pole time constant → per-sample coefficient.
+  private static func coefficient(seconds: Double, sampleRate: Double) -> Float {
+    guard seconds > 0, sampleRate > 0 else { return 1 }
+    return Float(1 - exp(-1 / (seconds * sampleRate)))
+  }
+}
+
 /// The warmth DSP as an allocation-free, in-place kernel over one mono channel
 /// — the seam Unit 2 (#24) hosts inside a realtime render block. Setup (filter
 /// state, coefficients) is preallocated in `init`/`update`; `process` only reads
@@ -91,14 +160,27 @@ private struct Biquad {
 ///    about to add;
 /// 3. **character saturation** `tanh(drive · x) / drive` — unity small-signal
 ///    gain, odd (no DC), harmonics rising with drive;
-/// 4. **make-up** — level-match;
-/// 5. **ceiling** `A · tanh(x / A)` — odd, and bounded by `A < 1` for *any*
-///    input, so the output can never clip whatever the upstream EQ did.
+/// 4. **make-up** — level-match, restoring what the saturator took off;
+/// 5. **leveler** — slow program levelling (#32). After the EQ so it reacts to
+///    the level the EQ actually set, and after the saturator so it sees rounded
+///    transients rather than raw spikes.
+///
+///    It sits after the make-up, not before, and that ordering is load-bearing:
+///    the leveler's net gain works out to `(pivot − input)·(1 − 1/ratio)`, so it
+///    is neutral only when its input sits *at* `levelerPivotDBFS`. Behind the
+///    make-up it would see the saturator's ~0.8 dB loss instead, and compensate
+///    for it a second time — the same loss corrected twice, which put a −12 dBFS
+///    tone 1.3 dB up and broke the ±1 dB loudness guardrail. A static
+///    level-changer belongs ahead of the stage that reacts to level;
+/// 6. **ceiling** `A · tanh(x / A)` — odd, and bounded by `A < 1` for *any*
+///    input, so the output can never clip whatever the upstream EQ did. Last, so
+///    nothing downstream can break the guarantee.
 public struct WarmthKernel {
   private let sampleRate: Double
   private var headBump = Biquad()
   private var highShelf = Biquad()
   private var drive = 0.0
+  private var leveler = Leveler()
   private var makeup: Float = 1
   private var ceiling: Float = 1
 
@@ -121,14 +203,17 @@ public struct WarmthKernel {
       gainDB: parameters.highShelfGainDB,
       sampleRate: sampleRate)
     drive = parameters.drive
+    leveler.update(parameters, sampleRate: sampleRate)
     makeup = Float(pow(10, parameters.makeupGainDB / 20))
     ceiling = Float(parameters.ceiling)
   }
 
-  /// Clear filter memory. Call when starting a fresh signal.
+  /// Clear filter and envelope memory. Call when starting a fresh signal, so a
+  /// new take does not begin part-way into the last one's gain reduction.
   public mutating func reset() {
     headBump.reset()
     highShelf.reset()
+    leveler.reset()
   }
 
   /// Process one mono channel in place. Allocation-free.
@@ -144,6 +229,7 @@ public struct WarmthKernel {
         x = Float(tanh(drive * Double(x)) / drive)
       }
       x *= makeup
+      x = leveler.process(x)
       x = ceiling * Float(tanh(Double(x) / Double(ceiling)))
       samples[i] = x
     }

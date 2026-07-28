@@ -57,3 +57,45 @@ consequence is a thing a later change could quietly get wrong:
   Candle* cassette end), not a heavier modern tape-emulation. The top of the
   dial is the most flattering setting, not the most extreme. Final voicing is
   found by ear on device (#24); the numbers only start the search.
+
+### The leveler's make-up is pinned to a pivot, not to full scale (#32)
+
+The Enhance leveler derives its make-up gain from threshold and ratio rather
+than exposing it as a voiced parameter:
+
+    levelerMakeupGainDB = (levelerPivotDBFS - levelerThresholdDB) * (1 - 1 / levelerRatio)
+
+with the pivot at −12 dBFS, roughly where a well-tracked take sits. A signal at
+the pivot therefore passes through the leveler unchanged: louder passages come
+down, quieter detail comes up, and the level the user tracked at does not move.
+
+The obvious alternative — auto make-up referenced to full scale, which is what
+most compressors ship — would lift a −12 dBFS take by about 6 dB. That is the
+"character, not volume" failure #21 warns about, arriving disguised as a
+feature: every user prefers the louder setting and calls it better. Deriving the
+make-up instead of voicing it means no by-ear tuning pass can reintroduce that,
+the same way the bounded `ceiling` makes no-clipping structural rather than
+something the curve must avoid. Any future change that makes make-up an
+independent parameter gives that guarantee up.
+
+### A level-dependent gain rescales a pre-existing DC offset (#32)
+
+`WarmthProcessorTests.noDCIntroduced` used to assert `dc(out) ≈ dc(in)` for both
+the sine and the noise fixture. That comparison was only ever valid because
+every stage in the chain had unity gain at DC. The leveler does not: it applies
+a gain that depends on level, and a DC offset is a low-level component, so it
+rides the (larger) gain the leveler gives quiet content — measured ~1.22× at
+full warmth, bounded above by the chain's small-signal gain.
+
+Nothing is introducing DC. The noise fixture carries ~−0.0012 of its own from
+PRNG sampling noise at that length, and the sine fixture — which is DC-free —
+still comes out DC-free at every dial position, which is the case that would
+catch a real defect. So the noise assertion now bounds the output offset by the
+input's own offset times the chain's small-signal gain, and the sine assertion
+stays exact.
+
+The rejected alternative was making `Fixtures.whiteNoise` exactly zero-mean.
+That would make the tight assertion valid again for every stage, but it changes
+a fixture shared by other suites and forces the committed `noise-20` WAV to be
+regenerated — a wider blast radius than this issue justifies. It remains the
+better fix if the DC guardrail ever needs to be tightened again.
