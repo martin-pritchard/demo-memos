@@ -30,7 +30,11 @@ in the tree. Build them; don't assume they exist.
   still empty. `.claude/verify.sh` skips it loudly rather than pretending.
 - `docs/PRINCIPLES.md` — placement rules. Read it before creating or moving
   files. Plugin-managed and overwritten wholesale on update, so never hand-edit
-  it; project-specific adaptations go here.
+  it; project-specific adaptations go here or in the stack appendix.
+- `docs/PRINCIPLES.ios.md` — the iOS appendix, and **not** plugin-managed. Hand-
+  written Swift/Apple-framework rules live here. Read it before writing audio
+  code: #1 is a hard rule about realtime threads that is expensive to discover
+  by violating.
 - `docs/SECURITY.md` — secret-handling rules. Read before adding any credential,
   key, or `.env`; the "a key in an iOS binary is not secret" section is a real
   architectural constraint, not boilerplate.
@@ -78,7 +82,7 @@ The pre-commit hook fails closed: no gitleaks, no commit. This repo is public.
 ## Conventions
 
 Placement rules live in `docs/PRINCIPLES.md` — read it before creating or moving
-files.
+files. Swift-specific rules are in `docs/PRINCIPLES.ios.md`.
 
 Seam and definition-of-done rules live in the `sdlc:build-rules` skill.
 
