@@ -144,3 +144,27 @@ truncating turns ordinary floating-point error into a visibly wrong final digit 
 above the file's true length. That only matters once a duration formatter for the
 Demos list exists and the two have to agree; whichever lands second should match
 this one rather than re-deciding.
+
+### The Enhance dial travels one track width, not one scale width (#46)
+
+`DialGesture` resolves a drag as `-translation / trackWidth` — the *visible*
+300pt track — so a 150pt drag from the default 0.5 covers the rest of the range.
+`docs/design/README.md` § Enhance dial writes the same formula over `stripWidth`,
+and the prototype's `EnhanceSlider` divides by `STRIP` (`40 × 14pt = 560`),
+which would make the dial ~1.9× less sensitive: a full sweep of the track would
+move the value about 0.54 rather than 1.0.
+
+#46 is the later document and pins the trackWidth reading with worked numbers in
+its acceptance criteria, so it wins — the same way #44 settled the tone
+thresholds against `demo-scene.jsx`. Recorded because the two are one argument
+apart and the difference is invisible in a screenshot: it is a *feel* decision,
+and the next person to drag the dial on a device is better placed to judge it
+than either document. Changing it means passing `Self.stripWidth` at the one
+call site in `EnhanceDial.track`; the pure function and its tests do not move.
+
+The related choice is what happens past an end. The scale stops dead — no
+rubber-band, per the issue — but a drag that overshoots and comes back moves the
+instant the finger reverses, rather than paying the overshoot back first. That is
+scroll-view behaviour, and it is the view's, not the reducer's: `DialGesture`
+stays pure and the view re-anchors on the clamped value for the rest of the
+gesture.
