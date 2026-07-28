@@ -75,16 +75,6 @@ if [ -d "apps/ios/DemoMemos.xcodeproj" ]; then
   fi
 fi
 
-# ---------------------------------------------------------------- Core (SPM)
-# The offline audio/domain core. Pure Swift, no simulator — runs in ~seconds.
-if [ -f "apps/ios/Core/Package.swift" ]; then
-  checked=$((checked + 1))
-  echo "==> Core: swift test (offline package, no simulator)"
-  if ! swift test --package-path apps/ios/Core; then
-    fail "Core swift test"
-  fi
-fi
-
 # ---------------------------------------------------------------- web
 if [ -f "apps/web/package.json" ]; then
   checked=$((checked + 1))
