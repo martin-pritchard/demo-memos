@@ -18,19 +18,25 @@ protocol Playing: AnyObject {
   func setWarmth(_ value: Double)
 }
 
-/// Rung 5 of the `ios-audio` ladder — an `AVAudioEngine` graph hosting Unit 1's
-/// hand-written warmth DSP — chosen because Enhance needs sample access the
-/// file-in/file-out players (rung 2) cannot give. The graph is deliberately one
-/// node deep:
+/// An `AVAudioEngine` graph hosting Unit 1's hand-written warmth DSP (rung 5 of
+/// the `ios-audio` ladder — Enhance needs sample access the file-in/file-out
+/// players can't give) followed by Apple's reverb (rung 3 — never a hand-rolled
+/// reverb). The graph:
 ///
 ///   `AVAudioSourceNode` (reads the preloaded take + runs `WarmthKernel`)
+///     → `AVAudioUnitReverb` (a touch of space; late and parallel, wet-against-dry)
 ///     → `mainMixerNode` → `outputNode`
 ///
-/// The source node is *both* transport and effect: on `play` the whole take is
-/// decoded to a mono `[Float]` here on the main actor — off the realtime thread
-/// — and the render block only copies frames and colours them, so it never
+/// The source node is *both* transport and warmth effect: on `play` the whole
+/// take is decoded to a mono `[Float]` here on the main actor — off the realtime
+/// thread — and the render block only copies frames and colours them, so it never
 /// allocates, locks, or awaits (`docs/PRINCIPLES.ios.md` #1). All the realtime
 /// arithmetic lives in `WarmthRenderCore`, which is unit-tested with no engine.
+///
+/// The reverb wet mix is not its own control: it rides the same Enhance dial
+/// (#22), driven off `warmthParameters(_:).reverbWetMix` so a touch of space
+/// folds in with the warmth along one curve. At `warmth == 0` the node is bypassed
+/// for a true dry passthrough.
 ///
 /// A fresh engine is built per `play` and torn down on `stop`/finish, so a
 /// `mediaServicesWereReset` is handled simply by rebuilding on the next `play`.
@@ -43,6 +49,7 @@ final class AudioPlayer: Playing {
 
   private var engine: AVAudioEngine?
   private var core: WarmthRenderCore?
+  private var reverb: AVAudioUnitReverb?
   private var endPoll: Timer?
   private var observers: [NSObjectProtocol] = []
 
@@ -81,8 +88,14 @@ final class AudioPlayer: Playing {
 
     let engine = AVAudioEngine()
     let source = AVAudioSourceNode(format: format, renderBlock: render)
+    // Apple's reverb, after the warmth node. Preset and wet amount are tuned by
+    // ear like the warmth curve; `.mediumHall` is smoother and bigger than a room.
+    let reverb = AVAudioUnitReverb()
+    reverb.loadFactoryPreset(.mediumHall)
     engine.attach(source)
-    engine.connect(source, to: engine.mainMixerNode, format: format)
+    engine.attach(reverb)
+    engine.connect(source, to: reverb, format: format)
+    engine.connect(reverb, to: engine.mainMixerNode, format: format)
     engine.prepare()
     do {
       try engine.start()
@@ -93,6 +106,8 @@ final class AudioPlayer: Playing {
 
     self.engine = engine
     self.core = core
+    self.reverb = reverb
+    applyReverb()  // seed the wet mix from the current dial
     observeSessionEvents()
     startEndPoll()
   }
@@ -104,6 +119,17 @@ final class AudioPlayer: Playing {
   func setWarmth(_ value: Double) {
     warmth = min(max(value, 0), 1)
     core?.setTargetWarmth(warmth)
+    applyReverb()
+  }
+
+  /// Fold the dial's share of space onto the reverb. Set from the main actor, so
+  /// no realtime concerns; the reverb tail smooths the change perceptually. At
+  /// warmth 0 the node is bypassed so the dry path is a true passthrough.
+  private func applyReverb() {
+    guard let reverb else { return }
+    let wet = warmthParameters(warmth).reverbWetMix  // 0...1
+    reverb.bypass = wet == 0
+    reverb.wetDryMix = Float(wet * 100)
   }
 
   // MARK: - Lifecycle
@@ -114,6 +140,7 @@ final class AudioPlayer: Playing {
     guard let engine else { return }
     self.engine = nil
     core = nil
+    reverb = nil
     endPoll?.invalidate()
     endPoll = nil
     stopObserving()
