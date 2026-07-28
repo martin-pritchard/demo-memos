@@ -20,6 +20,15 @@ final class CaptureState {
   /// is nothing to say.
   private(set) var notice: String?
 
+  /// The Enhance dial, `0...1`. In-memory for the session — resets on relaunch,
+  /// no persistence (#21 non-goal). Every change is forwarded to the player, so
+  /// the dial moves the take live during playback and is remembered for the next
+  /// one. `0` is a true bypass. The `Slider` binds this over `0...1`; the player
+  /// clamps too, so an out-of-range write still reaches the DSP in range.
+  var warmth: Double = 0 {
+    didSet { player.setWarmth(warmth) }
+  }
+
   private let recorder: any Recording
   private let player: any Playing
   private let folder: URL

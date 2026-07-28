@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		13C0DE0000000000000000C2 /* Core in Frameworks */ = {isa = PBXBuildFile; productRef = 13C0DE0000000000000000C1 /* Core */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		135F36E53018C60F00943218 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -27,7 +31,6 @@
 		135F36D33018C60E00943218 /* DemoMemos.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = DemoMemos.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		135F36E43018C60F00943218 /* DemoMemosTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = DemoMemosTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		135F36EE3018C60F00943218 /* DemoMemosUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = DemoMemosUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		135F37023018C66E00943218 /* Core */ = {isa = PBXFileReference; lastKnownFileType = wrapper; name = Core; path = Core; sourceTree = SOURCE_ROOT; };
 		135F37033018C70000943218 /* Shared.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = Shared.xcconfig; path = Config/Shared.xcconfig; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -67,6 +70,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				13C0DE0000000000000000C2 /* Core in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -90,7 +94,6 @@
 		135F36CA3018C60E00943218 = {
 			isa = PBXGroup;
 			children = (
-				135F37023018C66E00943218 /* Core */,
 				135F37033018C70000943218 /* Shared.xcconfig */,
 				135F36D53018C60E00943218 /* DemoMemos */,
 				135F36E73018C60F00943218 /* DemoMemosTests */,
@@ -129,6 +132,7 @@
 			);
 			name = DemoMemos;
 			packageProductDependencies = (
+				13C0DE0000000000000000C1 /* Core */,
 			);
 			productName = DemoMemos;
 			productReference = 135F36D33018C60E00943218 /* DemoMemos.app */;
@@ -212,6 +216,9 @@
 			);
 			mainGroup = 135F36CA3018C60E00943218;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				13C0DE0000000000000000C0 /* XCLocalSwiftPackageReference "Core" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 135F36D43018C60E00943218 /* Products */;
 			projectDirPath = "";
@@ -223,6 +230,21 @@
 			);
 		};
 /* End PBXProject section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		13C0DE0000000000000000C0 /* XCLocalSwiftPackageReference "Core" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Core;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		13C0DE0000000000000000C1 /* Core */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 13C0DE0000000000000000C0 /* XCLocalSwiftPackageReference "Core" */;
+			productName = Core;
+		};
+/* End XCSwiftPackageProductDependency section */
 
 /* Begin PBXResourcesBuildPhase section */
 		135F36D13018C60E00943218 /* Resources */ = {
