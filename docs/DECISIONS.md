@@ -124,3 +124,23 @@ pivot-level tone through the kernel and asserts the level change is *identical*
 across dial positions — the ratio varies from ~1.4 to 2.0 there, so a derivation
 that drifts with ratio fails it. It cannot assert the change is zero: the bounded
 `ceiling` is still in the chain and costs a constant ~0.14 dB.
+
+### The take timer has no hour form, and rounds rather than truncates (#45)
+
+`TimerParts` formats an elapsed time as `MM:SS` plus hundredths, and minutes never
+roll into hours: an hour reads `60:00`. `screen-states.md` lists a maximum-take
+policy as an open question; this settles only the *display*, not the policy. A
+demo is a song idea, and a field wide enough for `1:00:00` would be sized for a
+case that means something has already gone wrong. Past `99:59` the field does
+widen to three digits — accepted, because by then the readout is evidence of a
+runaway recording rather than a layout to protect.
+
+The centiseconds are **rounded** to the nearest, where the prototype's
+`demo-scene.jsx` truncates with `Math.floor`. Truncation is the more common
+stopwatch behaviour, but an elapsed time arrives as a binary `TimeInterval`, and
+truncating turns ordinary floating-point error into a visibly wrong final digit —
+`0.9999997` renders as `00:00.99`. The cost is that the readout can show up to
+5 ms that has not elapsed, so the last frame of a take can read one centisecond
+above the file's true length. That only matters once a duration formatter for the
+Demos list exists and the two have to agree; whichever lands second should match
+this one rather than re-deciding.
