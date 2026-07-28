@@ -99,3 +99,28 @@ That would make the tight assertion valid again for every stage, but it changes
 a fixture shared by other suites and forces the committed `noise-20` WAV to be
 regenerated — a wider blast radius than this issue justifies. It remains the
 better fix if the DC guardrail ever needs to be tightened again.
+
+### The leveler detects peaks instantly and puts the ballistics on the gain (#32)
+
+`Leveler` smooths the *gain*, not the envelope: the detector jumps straight to
+`abs(x)` on a rise and only the release time slows its fall, while the attack and
+release times shape the gain that is derived from it.
+
+The obvious arrangement — one asymmetric one-pole on the envelope, gain read
+straight off it — was tried first and quietly breaks the pivot guarantee above. A
+one-pole envelope with a 20 ms attack cannot track a waveform's peak: on a sine it
+settles about 1 dB below it, and by an amount that depends on the material's crest
+factor. Since the make-up is derived in the *level* domain, that gap lands
+straight in the output — measured +0.5 dB at full warmth, scaling with
+`(1 − 1/ratio)`, so worst exactly where the ±1 dB loudness guardrail is tightest.
+It consumed 93% of that budget while every test stayed green, because the test
+covering the derivation restated the formula instead of measuring a signal.
+
+Detecting the peak exactly and smoothing the gain is also the textbook
+feed-forward topology, and it does not cost the transient behaviour: it is the
+*gain* that takes the attack time to come down, so strums still pass through
+un-squashed. `LevelerPivotTests.pivotToneIsUnchangedByTheLeveler` now measures a
+pivot-level tone through the kernel and asserts the level change is *identical*
+across dial positions — the ratio varies from ~1.4 to 2.0 there, so a derivation
+that drifts with ratio fails it. It cannot assert the change is zero: the bounded
+`ceiling` is still in the chain and costs a constant ~0.14 dB.

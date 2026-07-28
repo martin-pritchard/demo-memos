@@ -92,6 +92,18 @@ private struct Biquad {
 /// Peak-domain detector, no lookahead: lookahead means latency and a delay line,
 /// and neither is worth it for a stage tuned to be inaudible. `process` is
 /// branch-light, allocation-free and `libm`-only, per `docs/PRINCIPLES.ios.md` #1.
+///
+/// **The detector attacks instantly and the *gain* carries the ballistics.** The
+/// obvious alternative — smoothing the envelope with the attack time and reading
+/// the gain straight off it — quietly breaks the pivot guarantee. A one-pole
+/// envelope with a 20 ms attack cannot track a waveform's peak: on a sine it
+/// settles ~1 dB *below* it, by an amount that depends on the material's crest
+/// factor. `levelerMakeupGainDB` is derived in the level domain, so that gap
+/// lands straight in the output — measured +0.5 dB at full warmth, against a
+/// ±1 dB guardrail. Detecting the peak exactly and smoothing the gain instead
+/// makes the pivot neutrality hold for real, and is the textbook feed-forward
+/// topology besides: transients still pass, because it is the *gain* that takes
+/// the attack time to come down.
 private struct Leveler {
   private var attackCoefficient: Float = 1
   private var releaseCoefficient: Float = 1
@@ -103,9 +115,12 @@ private struct Leveler {
   private var exponent: Float = 0
   private var makeup: Float = 1
 
-  /// The only state that survives a sample. Deliberately *not* cleared by
-  /// `update`: a dial move must not restart the envelope, or every nudge clicks.
+  /// Detector state: rises to the peak instantly, falls at the release time, so
+  /// its steady-state reading *is* the signal's peak.
   private var envelope: Float = 0
+  /// The smoothed gain — this is what the attack and release times shape, and
+  /// what lets a transient through before the stage reacts to it.
+  private var gain: Float = 1
 
   /// Below this the envelope snaps to zero. Long silences otherwise decay toward
   /// denormals, which are punishingly slow on some cores — a realtime-thread
@@ -121,23 +136,34 @@ private struct Leveler {
     makeup = Float(pow(10, parameters.levelerMakeupGainDB / 20))
   }
 
+  /// Clear detector and gain. Deliberately *not* called from `update`: a dial
+  /// move must not restart either, or every nudge clicks.
   mutating func reset() {
     envelope = 0
+    gain = 1
   }
 
-  /// One sample in, one out. At `ratio == 1` the exponent is `0` and the make-up
-  /// is `1`, so `powf(_, 0) == 1` makes this an *exact* identity — the stage
-  /// bypasses itself at the bottom of the dial without needing a branch to do it.
+  /// One sample in, one out. At `ratio == 1` the exponent is `0`, so
+  /// `powf(_, 0) == 1` holds the target at `1`; `gain` starts at `1` and the
+  /// smoothing moves it nowhere, and the make-up is `1`. The stage is then an
+  /// *exact* identity — it bypasses itself at the bottom of the dial without
+  /// needing a branch to do it.
   mutating func process(_ x: Float) -> Float {
     let magnitude = abs(x)
-    // Asymmetric one-pole: fast to catch a rise, slow to let go — the asymmetry
-    // is what makes it ride the performance instead of pumping on it.
-    let coefficient = magnitude > envelope ? attackCoefficient : releaseCoefficient
-    envelope += (magnitude - envelope) * coefficient
+    // Instant attack, released at the release time: between two peaks of a tone
+    // this decays by a fraction of a dB, so the envelope reads the true peak.
+    if magnitude > envelope {
+      envelope = magnitude
+    } else {
+      envelope += (magnitude - envelope) * releaseCoefficient
+    }
     if envelope < denormalFloor { envelope = 0 }
 
-    guard envelope > threshold else { return x * makeup }
-    return x * powf(envelope / threshold, exponent) * makeup
+    let target = envelope > threshold ? powf(envelope / threshold, exponent) : 1
+    // Asymmetric: quick to pull the gain down, slow to let it back up — the
+    // asymmetry is what makes it ride the performance instead of pumping on it.
+    gain += (target - gain) * (target < gain ? attackCoefficient : releaseCoefficient)
+    return x * gain * makeup
   }
 
   /// One-pole time constant → per-sample coefficient.

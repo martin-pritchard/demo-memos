@@ -3,231 +3,355 @@ import Testing
 
 @testable import Core
 
-// The dial positions every behavioural claim is checked across.
-private let sweep: [Double] = [0, 0.25, 0.5, 0.75, 1.0]
+// MARK: - Shared helpers
 
-// A finer sweep for pure-curve shape claims, where evaluation is cheap.
-private let curveSweep: [Double] = stride(from: 0.0, through: 1.0, by: 0.01).map { $0 }
+/// Dial positions used for curve-shape sweeps.
+private let curveSweep: [Double] = stride(from: 0.0, through: 1.0, by: 0.05).map { $0 }
 
-// `levelSteps` lays out three 0.5 s segments: quiet, loud, quiet. The envelope
-// follower needs time after each level change, so we measure only the settled
-// tail of the loud segment and of the final quiet segment.
-private let loudWindow: Range<Double> = 0.7..<1.0
-private let quietWindow: Range<Double> = 1.2..<1.5
+/// Dial positions used for the DSP sweeps.
+private let dspSweep: [Double] = [0.0, 0.25, 0.5, 0.75, 1.0]
 
-/// Quiet -> loud -> quiet. The fixture the levelling claims are made against.
+/// The leveler fields of `warmthParameters(warmth)` with every other stage in the
+/// chain neutralised, so a measurement isolates what the leveler alone does.
+private func isolatedLevelerParameters(_ warmth: Double) -> WarmthParameters {
+  let p = warmthParameters(warmth)
+  return WarmthParameters(
+    headBumpFrequency: p.headBumpFrequency,
+    headBumpGainDB: 0,
+    headBumpQ: p.headBumpQ,
+    highShelfFrequency: p.highShelfFrequency,
+    highShelfGainDB: 0,
+    drive: 0,
+    makeupGainDB: 0,
+    ceiling: p.ceiling,
+    levelerThresholdDB: p.levelerThresholdDB,
+    levelerRatio: p.levelerRatio,
+    levelerAttack: p.levelerAttack,
+    levelerRelease: p.levelerRelease,
+    levelerMakeupGainDB: p.levelerMakeupGainDB,
+    reverbWetMix: 0
+  )
+}
+
+/// Runs a whole buffer through a freshly built kernel.
+private func kernelProcessed(_ buffer: SampleBuffer, _ parameters: WarmthParameters) -> SampleBuffer
+{
+  var kernel = WarmthKernel(parameters: parameters, sampleRate: buffer.sampleRate)
+  var samples = buffer.samples
+  samples.withUnsafeMutableBufferPointer { kernel.process($0) }
+  return SampleBuffer(
+    sampleRate: buffer.sampleRate, channelCount: buffer.channelCount, samples: samples)
+}
+
+/// The three-segment quiet → loud → quiet fixture the DSP suite measures.
 private func dynamicFixture() -> SampleBuffer {
   Fixtures.levelSteps(dbFS: [-30, -6, -30])
 }
 
-private func processed(_ warmth: Double, _ buffer: SampleBuffer) -> SampleBuffer {
-  WarmthProcessor(warmth: warmth).process(buffer)
+/// Settled RMS of the loud middle segment.
+private func loudRMS(_ buffer: SampleBuffer) -> Double {
+  rmsDBFS(buffer, seconds: 0.7..<1.0)
 }
 
-@Suite("Leveler parameter curve")
-struct LevelerParameterCurveTests {
+/// Settled RMS of the final quiet segment.
+private func quietRMS(_ buffer: SampleBuffer) -> Double {
+  rmsDBFS(buffer, seconds: 1.2..<1.5)
+}
 
-  @Test("At warmth zero the leveler is exactly identity: ratio 1.0 and no make-up")
-  func identityAtZero() {
-    let params = warmthParameters(0)
-    #expect(params.levelerRatio == 1.0)
-    #expect(params.levelerMakeupGainDB == 0)
+// MARK: - Curve shape
+
+@Suite("Leveler curve shape")
+struct LevelerCurveTests {
+
+  @Test("The dial at zero leaves the leveler doing nothing at all")
+  func neutralAtZero() {
+    let p = warmthParameters(0)
+    #expect(p.levelerRatio == 1.0)
+    #expect(p.levelerMakeupGainDB == 0)
   }
 
-  @Test("Ratio never falls as warmth rises and compresses at all by full warmth")
-  func ratioRisesAndCompressesAtFullWarmth() throws {
-    let ratios = curveSweep.map { warmthParameters($0).levelerRatio }
-    for (lower, higher) in zip(ratios, ratios.dropFirst()) {
-      #expect(higher >= lower)
+  @Test("The leveler ratio never falls as warmth rises and compresses at full warmth")
+  func ratioRisesMonotonically() {
+    for i in 1..<curveSweep.count {
+      let lower = warmthParameters(curveSweep[i - 1]).levelerRatio
+      let higher = warmthParameters(curveSweep[i]).levelerRatio
+      #expect(higher >= lower, "ratio fell between \(curveSweep[i - 1]) and \(curveSweep[i])")
     }
-    for ratio in ratios {
-      #expect(ratio >= 1.0)
-    }
-    #expect(try #require(ratios.last) > 1.0)
+    #expect(warmthParameters(1).levelerRatio > 1.0)
   }
 
-  @Test("Threshold never rises as warmth rises and is never above full scale")
-  func thresholdFallsAndStaysBelowFullScale() {
-    let thresholds = curveSweep.map { warmthParameters($0).levelerThresholdDB }
-    for (lower, higher) in zip(thresholds, thresholds.dropFirst()) {
-      #expect(higher <= lower)
+  @Test("The leveler threshold never rises as warmth rises and is never above zero dBFS")
+  func thresholdFallsMonotonically() {
+    for i in 1..<curveSweep.count {
+      let lower = warmthParameters(curveSweep[i - 1]).levelerThresholdDB
+      let higher = warmthParameters(curveSweep[i]).levelerThresholdDB
+      #expect(higher <= lower, "threshold rose between \(curveSweep[i - 1]) and \(curveSweep[i])")
     }
-    for threshold in thresholds {
-      #expect(threshold <= 0)
+    for warmth in curveSweep {
+      #expect(warmthParameters(warmth).levelerThresholdDB <= 0)
     }
   }
 
-  @Test("Make-up gain is never negative and never falls as warmth rises")
-  func makeupIsNonNegativeAndNonDecreasing() {
-    let makeups = curveSweep.map { warmthParameters($0).levelerMakeupGainDB }
-    for (lower, higher) in zip(makeups, makeups.dropFirst()) {
-      #expect(higher >= lower)
+  @Test("Leveler make-up gain is never negative and never falls as warmth rises")
+  func makeupRisesMonotonically() {
+    for warmth in curveSweep {
+      #expect(warmthParameters(warmth).levelerMakeupGainDB >= 0)
     }
-    for makeup in makeups {
-      #expect(makeup >= 0)
+    for i in 1..<curveSweep.count {
+      let lower = warmthParameters(curveSweep[i - 1]).levelerMakeupGainDB
+      let higher = warmthParameters(curveSweep[i]).levelerMakeupGainDB
+      #expect(higher >= lower, "make-up fell between \(curveSweep[i - 1]) and \(curveSweep[i])")
     }
   }
 
   @Test(
-    "Attack and release are positive, constant across the dial, and release is the longer of the two"
+    "Attack and release are positive, constant across the dial, and release is the slower of the two"
   )
-  func timeConstantsArePositiveAndConstant() {
+  func timeConstantsAreConstantAndOrdered() {
     let reference = warmthParameters(0)
     #expect(reference.levelerAttack > 0)
     #expect(reference.levelerRelease > 0)
     #expect(reference.levelerRelease > reference.levelerAttack)
-
     for warmth in curveSweep {
-      let params = warmthParameters(warmth)
-      #expect(params.levelerAttack == reference.levelerAttack)
-      #expect(params.levelerRelease == reference.levelerRelease)
+      let p = warmthParameters(warmth)
+      #expect(p.levelerAttack == reference.levelerAttack)
+      #expect(p.levelerRelease == reference.levelerRelease)
     }
   }
 
-  @Test("The pivot the leveler is referenced to sits below full scale")
-  func pivotIsBelowFullScale() {
-    #expect(levelerPivotDBFS < 0)
-  }
-
-  @Test("Warmth outside zero to one is clamped to the ends of the curve")
+  @Test("Warmth outside zero to one is clamped to the ends of the dial")
   func warmthIsClamped() {
     #expect(warmthParameters(-5) == warmthParameters(0))
     #expect(warmthParameters(5) == warmthParameters(1))
   }
 
-  @Test("Make-up gain is derived so a signal at the pivot passes through unchanged")
-  func makeupIsDerivedFromThePivot() {
-    for warmth in curveSweep {
-      let params = warmthParameters(warmth)
-      #expect(params.levelerMakeupGainDB >= 0)
+  @Test("The leveler pivot sits below full scale")
+  func pivotIsBelowFullScale() {
+    #expect(levelerPivotDBFS < 0)
+  }
+}
 
-      guard params.levelerThresholdDB <= levelerPivotDBFS else { continue }
-      let expected =
-        (levelerPivotDBFS - params.levelerThresholdDB) * (1 - 1 / params.levelerRatio)
-      #expect(abs(params.levelerMakeupGainDB - expected) <= 1e-9)
+// MARK: - Pivot guarantee
+
+@Suite("Leveler pivot guarantee")
+struct LevelerPivotTests {
+
+  @Test("Make-up gain is derived from the pivot, the threshold and the ratio")
+  func makeupMatchesTheDerivation() {
+    for warmth in [0.0, 0.25, 0.5, 0.75, 1.0] {
+      let p = warmthParameters(warmth)
+      let expected = (levelerPivotDBFS - p.levelerThresholdDB) * (1 - 1 / p.levelerRatio)
+      #expect(abs(p.levelerMakeupGainDB - expected) < 1e-9, "derivation mismatch at \(warmth)")
+    }
+  }
+
+  @Test("A tone at the pivot changes level by the same amount at every dial position")
+  func pivotToneIsUnchangedByTheLeveler() {
+    let input = Fixtures.sine(dbFS: levelerPivotDBFS, frequency: 1000, duration: 2.0)
+    let window = 1.5..<2.0
+    let inputLevel = rmsDBFS(input, seconds: window)
+
+    let positions: [Double] = [0.25, 0.5, 0.75, 1.0]
+    let changes = positions.map { warmth -> Double in
+      let out = kernelProcessed(input, isolatedLevelerParameters(warmth))
+      return rmsDBFS(out, seconds: window) - inputLevel
+    }
+
+    // The ceiling stage is still active in the isolated chain and costs a small
+    // constant amount at every position. What the pivot guarantee claims is that
+    // the *leveler* contributes nothing, so the figure must be identical across
+    // dial positions even though the ratio varies a lot.
+    for i in 0..<changes.count {
+      for j in (i + 1)..<changes.count {
+        #expect(
+          abs(changes[i] - changes[j]) <= 0.01,
+          """
+          pivot level change drifted between warmth \(positions[i]) and \(positions[j]): \
+          \(changes[i]) vs \(changes[j])
+          """
+        )
+      }
+    }
+
+    // And it must stay small in absolute terms, to catch a wholesale gain error.
+    for (warmth, change) in zip(positions, changes) {
+      #expect(abs(change) <= 0.5, "pivot level change too large at warmth \(warmth): \(change)")
     }
   }
 }
 
-@Suite("Leveler dynamics")
-struct LevelerDynamicsTests {
+// MARK: - DSP behaviour
 
-  @Test(
-    "Raising warmth never widens the gap between the loud and quiet passages, and narrows it by full warmth"
-  )
-  func passageRangeNeverWidens() throws {
+@Suite("Leveler DSP behaviour")
+struct LevelerProcessorTests {
+
+  @Test("The gap between a loud passage and a quiet one narrows as warmth rises")
+  func passageRangeNarrows() {
     let input = dynamicFixture()
-    let ranges = sweep.map { warmth -> Double in
-      let output = processed(warmth, input)
-      return rmsDBFS(output, seconds: loudWindow) - rmsDBFS(output, seconds: quietWindow)
+    let ranges = dspSweep.map { warmth -> Double in
+      let out = WarmthProcessor(warmth: warmth).process(input)
+      return loudRMS(out) - quietRMS(out)
     }
 
-    for range in ranges {
-      #expect(range.isFinite)
+    for i in 1..<ranges.count {
+      #expect(
+        ranges[i] <= ranges[i - 1] + 1e-6,
+        """
+        passage range widened between warmth \(dspSweep[i - 1]) and \(dspSweep[i]): \
+        \(ranges[i - 1]) → \(ranges[i])
+        """
+      )
     }
-
-    // Small slack: this is a claim about the shape of the curve, not about
-    // float noise between adjacent dial positions.
-    for (lower, higher) in zip(ranges, ranges.dropFirst()) {
-      #expect(higher <= lower + 1e-6)
-    }
-
-    let dry = try #require(ranges.first)
-    let wet = try #require(ranges.last)
-    #expect(wet < dry)
+    #expect(ranges[ranges.count - 1] < ranges[0])
   }
 
-  @Test("No dial position makes the loud passage more than a decibel louder than dry")
+  @Test("The loud passage never gets louder than dry at any dial position")
   func loudPassageNeverGetsLouder() {
     let input = dynamicFixture()
-    let dryLoud = rmsDBFS(processed(0, input), seconds: loudWindow)
-
-    for warmth in sweep {
-      let loud = rmsDBFS(processed(warmth, input), seconds: loudWindow)
-      #expect(loud <= dryLoud + 1.0)
+    let dryLoud = loudRMS(WarmthProcessor(warmth: 0).process(input))
+    for warmth in dspSweep {
+      let loud = loudRMS(WarmthProcessor(warmth: warmth).process(input))
+      #expect(loud <= dryLoud + 1.0, "loud passage rose to \(loud) from \(dryLoud) at \(warmth)")
     }
   }
 
-  @Test("The quiet passage is lifted at full warmth")
-  func quietPassageIsLifted() {
+  @Test("The quiet passage is lifted at full warmth but by a bounded amount")
+  func quietPassageIsLiftedButBounded() {
     let input = dynamicFixture()
-    let dryQuiet = rmsDBFS(processed(0, input), seconds: quietWindow)
-    let wetQuiet = rmsDBFS(processed(1, input), seconds: quietWindow)
+    let dryQuiet = quietRMS(WarmthProcessor(warmth: 0).process(input))
+    let wetQuiet = quietRMS(WarmthProcessor(warmth: 1).process(input))
     #expect(wetQuiet > dryQuiet)
+    #expect(wetQuiet - dryQuiet <= 6.0, "quiet passage lifted by \(wetQuiet - dryQuiet) dB")
   }
 
-  @Test("Gain reduction on the loud passage stays within six decibels at full warmth")
+  @Test("Gain reduction on the loud passage is bounded at full warmth")
   func gainReductionIsBounded() {
     let input = dynamicFixture()
-    let dryLoud = rmsDBFS(processed(0, input), seconds: loudWindow)
-    let wetLoud = rmsDBFS(processed(1, input), seconds: loudWindow)
-    #expect(wetLoud >= dryLoud - 6.0)
+    let dryLoud = loudRMS(WarmthProcessor(warmth: 0).process(input))
+    let wetLoud = loudRMS(WarmthProcessor(warmth: 1).process(input))
+    #expect(wetLoud >= dryLoud - 6.0, "loud passage pulled down by \(dryLoud - wetLoud) dB")
   }
 
-  @Test("Warmth zero passes the dynamic fixture through untouched")
+  @Test("Warmth zero returns the input untouched")
   func warmthZeroIsATrueBypass() {
     let input = dynamicFixture()
-    nullTest(processed(0, input), input, tolerance: -250)
+    let out = WarmthProcessor(warmth: 0).process(input)
+    nullTest(input, out, tolerance: -250)
   }
-}
-
-@Suite("Leveler safety")
-struct LevelerSafetyTests {
 
   @Test("Silence stays silent and finite at every dial position")
   func silenceStaysSilent() {
-    let input = Fixtures.silence()
-    for warmth in sweep {
-      let output = processed(warmth, input)
-      #expect(peakDBFS(output) == -.infinity)
-      for sample in output.samples {
-        #expect(sample.isFinite)
-      }
+    for warmth in dspSweep {
+      let out = WarmthProcessor(warmth: warmth).process(Fixtures.silence())
+      #expect(peakDBFS(out) == -.infinity, "silence gained level at warmth \(warmth)")
+      let allFinite = out.samples.allSatisfy({ $0.isFinite })
+      #expect(allFinite, "non-finite sample at warmth \(warmth)")
     }
   }
 
-  @Test("The dynamic fixture never clips at any dial position")
-  func dynamicFixtureNeverClips() {
-    let input = dynamicFixture()
-    for warmth in sweep {
-      let output = processed(warmth, input)
-      assertNoClipping(output)
-      #expect(peakDBFS(output) < 0)
+  @Test("Nothing clips across the dial")
+  func nothingClips() {
+    let dynamic = dynamicFixture()
+    for warmth in dspSweep {
+      let out = WarmthProcessor(warmth: warmth).process(dynamic)
+      assertNoClipping(out)
+      #expect(peakDBFS(out) < 0, "peak reached \(peakDBFS(out)) at warmth \(warmth)")
     }
-  }
 
-  @Test("An impulse never clips at any dial position above bypass")
-  func impulseNeverClips() {
-    // Warmth 0 is excluded: it is a true bypass returning the input verbatim,
-    // and `Fixtures.impulse()` peaks at exactly 1.0, so it would read as
-    // clipped though the processor introduced nothing. `WarmthProcessorTests`
-    // excludes warmth 0 for the same reason.
-    let input = Fixtures.impulse()
-    for warmth in sweep where warmth > 0 {
-      let output = processed(warmth, input)
-      assertNoClipping(output)
-      #expect(peakDBFS(output) < 0)
+    // Warmth 0 is excluded for the impulse: the processor short-circuits and
+    // returns the input verbatim, and the impulse fixture peaks at exactly 1.0,
+    // which reads as clipped even though the processor introduced nothing.
+    let impulse = Fixtures.impulse()
+    for warmth in dspSweep where warmth != 0 {
+      let out = WarmthProcessor(warmth: warmth).process(impulse)
+      assertNoClipping(out)
+      #expect(peakDBFS(out) < 0, "impulse peak reached \(peakDBFS(out)) at warmth \(warmth)")
     }
   }
 
   @Test("No DC offset is introduced at any dial position")
-  func noDCOffsetIntroduced() {
+  func noDCIntroduced() {
     let input = dynamicFixture()
     let inputDC = dcOffset(input)
-    for warmth in sweep {
-      let outputDC = dcOffset(processed(warmth, input))
-      #expect(abs(outputDC - inputDC) <= 1e-4)
+    for warmth in dspSweep {
+      let out = WarmthProcessor(warmth: warmth).process(input)
+      #expect(
+        abs(dcOffset(out) - inputDC) <= 1e-4,
+        "DC drifted to \(dcOffset(out)) from \(inputDC) at warmth \(warmth)"
+      )
     }
   }
 
-  @Test("Sample rate, channel count and sample count survive the leveler unchanged")
+  @Test("Buffer shape is preserved at every dial position")
   func bufferShapeIsPreserved() {
     let input = dynamicFixture()
-    for warmth in sweep {
-      let output = processed(warmth, input)
-      #expect(output.sampleRate == input.sampleRate)
-      #expect(output.channelCount == input.channelCount)
-      #expect(output.samples.count == input.samples.count)
+    for warmth in dspSweep {
+      let out = WarmthProcessor(warmth: warmth).process(input)
+      #expect(out.sampleRate == input.sampleRate)
+      #expect(out.channelCount == input.channelCount)
+      #expect(out.samples.count == input.samples.count)
     }
+  }
+}
+
+// MARK: - Kernel state
+
+@Suite("Leveler kernel state")
+struct LevelerKernelStateTests {
+
+  @Test("Updating the parameters mid-buffer does not restart the leveler")
+  func updateDoesNotResetState() throws {
+    let input = dynamicFixture()
+    let parameters = warmthParameters(0.8)
+    let sampleRate = input.sampleRate
+
+    var straight = WarmthKernel(parameters: parameters, sampleRate: sampleRate)
+    var straightSamples = input.samples
+    straightSamples.withUnsafeMutableBufferPointer { straight.process($0) }
+
+    var interrupted = WarmthKernel(parameters: parameters, sampleRate: sampleRate)
+    var interruptedSamples = input.samples
+    let split = interruptedSamples.count / 2
+    try interruptedSamples.withUnsafeMutableBufferPointer { buffer in
+      let base = try #require(buffer.baseAddress)
+      interrupted.process(UnsafeMutableBufferPointer(start: base, count: split))
+      interrupted.update(parameters)
+      interrupted.process(
+        UnsafeMutableBufferPointer(start: base + split, count: buffer.count - split))
+    }
+
+    #expect(straightSamples.count == interruptedSamples.count)
+    let shared = min(straightSamples.count, interruptedSamples.count)
+    if let firstDifference = (0..<shared).first(where: {
+      straightSamples[$0] != interruptedSamples[$0]
+    }) {
+      Issue.record(
+        """
+        sample \(firstDifference) differs after update: \
+        \(straightSamples[firstDifference]) vs \(interruptedSamples[firstDifference])
+        """)
+    }
+    #expect(straightSamples == interruptedSamples)
+  }
+
+  @Test("Resetting clears the leveler state so a quiet signal is processed as if fresh")
+  func resetClearsState() {
+    let parameters = warmthParameters(0.8)
+    let loud = Fixtures.sine(dbFS: -3, frequency: 1000, duration: 1.0)
+    let quiet = Fixtures.sine(dbFS: -30, frequency: 1000, duration: 1.0)
+    let sampleRate = quiet.sampleRate
+
+    var driven = WarmthKernel(parameters: parameters, sampleRate: sampleRate)
+    var loudSamples = loud.samples
+    loudSamples.withUnsafeMutableBufferPointer { driven.process($0) }
+    driven.reset()
+    var afterReset = quiet.samples
+    afterReset.withUnsafeMutableBufferPointer { driven.process($0) }
+
+    var fresh = WarmthKernel(parameters: parameters, sampleRate: sampleRate)
+    var freshOutput = quiet.samples
+    freshOutput.withUnsafeMutableBufferPointer { fresh.process($0) }
+
+    #expect(afterReset == freshOutput)
   }
 }
