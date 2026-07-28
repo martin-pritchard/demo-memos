@@ -1,0 +1,9 @@
+// Shared build settings, checked into version control.
+//
+// Machine-specific values (e.g. your Apple Developer Team ID) belong in
+// Local.xcconfig, which is git-ignored so it is never committed. Copy
+// Local.xcconfig.example to Local.xcconfig and fill in your own values.
+//
+// The optional include below (note the "?") is silently ignored when
+// Local.xcconfig is absent, so a fresh checkout still builds cleanly.
+#include? "Local.xcconfig"
