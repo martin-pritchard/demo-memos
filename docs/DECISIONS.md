@@ -336,3 +336,37 @@ than a blank box. That is a consequence of an existing component's contract,
 not a new decision, and it is recorded here so nobody reads the resulting
 screenshot as a designed state. Whether a zero-length take should be capturable
 at all is still open.
+
+### The UI test target is gone, and there is no CI (setup audit)
+
+`DemoMemosUITests` shipped with the Xcode template and never held a test —
+`testExample` launched the app and asserted nothing. Nothing ran it:
+`verify.sh` passes `-only-testing:DemoMemosTests`, and there is no
+`.github/workflows`. Two places nonetheless said "UI tests are CI's job",
+which read as a safety net that had never once run.
+
+The target and both claims are deleted rather than backfilled. A UI test is
+worth writing when there is a wired screen to drive; today every screen is
+stub-driven and its states are already covered by `#Preview` and by unit tests
+over the presentation types. Bringing the target back is `File > New > Target`
+plus this entry read backwards.
+
+`verify.sh` on the Stop hook is therefore the entire automated safety net.
+`docs/PRINCIPLES.ios.md` #4 already says what it cannot vouch for: anything
+touching capture is unverified until it has run on a device.
+
+### Enhance and warmth are two names on purpose (setup audit)
+
+The dial the user turns is **Enhance**; the parameter it drives is **warmth**.
+The boundary sits at `Audio/`: above it — `EnhanceDial`, `TakeScreenState.enhance`
+— the control's name, and below it — `CaptureMachine.warmth`, `setWarmth`,
+`Core`'s `WarmthParameters` and `WarmthRenderCore` — the DSP's. Both names are
+correct for their layer, and neither is a rename waiting to happen: "enhance"
+says nothing about what the signal gets, and shipping "warmth" to the UI would
+contradict the design bundle, which calls the control Enhance throughout.
+
+The one place the two meet is `CaptureState`, which binds a screen to the
+machine. It keeps `warmth`, matching the machine it forwards to; the rename to
+the control's vocabulary happens when `TakeScreen` replaces `RecordingScreen`
+and the property is being rewritten anyway. Recorded because a repo with both
+words in it otherwise looks like drift rather than a boundary.

@@ -43,12 +43,38 @@ payloads, the `hasOnboarded` flag, any navigation between the three screens, and
 count-in (it shipped in #12 and was lost to the #14 rebuild — `TakeScreen` draws
 the mode, nothing drives it).
 
+## Vocabulary
+
+The names the code uses for its own ideas. Match them; don't introduce a
+synonym for one that already exists.
+
+- **Demo** — a saved recording as the user meets it: a row in the Demos list
+  (`DemoListItem`). The product noun, and what a share sends.
+- **Take** — the same recording while it is being captured or reviewed on the
+  Take screen (`TakeScreen`, `TakeScreenState`). One at a time.
+- **Enhance** — the single control, `0…1`. The user-facing name, and the only
+  one above the audio layer: `EnhanceDial`, `TakeScreenState.enhance`.
+- **warmth** — the DSP parameter Enhance drives, and the only name for it from
+  `Audio/` down: `CaptureMachine.warmth`, `setWarmth`, `Core`'s `Warmth*`.
+  Enhance is what the user turns; warmth is what the signal gets. The split is
+  deliberate — don't rename either into the other.
+- **Capture** — recording, as a domain rather than an act: `CaptureMachine`
+  decides it, `CaptureMode` is where it is, `CaptureState` performs it.
+- **Notice** — anything the capture machine has to tell the user
+  (`CaptureNotice`): denied permission, why a take stopped, a failed start.
+- **Count-in** — the beats before capture rolls. **Coaching** — the live input
+  hint under the timer (`CoachingLevel`: `clear`, `low`, `hot`).
+- **Transport** — the record/play/stop pair (`TransportRole`). **Bars** — the
+  waveform's levels, `0…1`. **Scrub** — dragging the **playhead**.
+
 ## Layout
 
 - `apps/ios` — the app.
-  - `DemoMemos.xcodeproj`, scheme `DemoMemos`. Targets: `DemoMemos`,
-    `DemoMemosTests` (Swift Testing), `DemoMemosUITests` (XCTest).
-    iOS 26.5 deployment target, Swift 5 language mode.
+  - `DemoMemos.xcodeproj`, scheme `DemoMemos`. Targets: `DemoMemos` and
+    `DemoMemosTests` (Swift Testing). iOS 26.5 deployment target, Swift 5
+    language mode. There is no UI test target and no CI — `.claude/verify.sh`
+    on the Stop hook is the whole safety net, so anything it doesn't run is
+    unverified.
   - `DemoMemos/Audio/` — the audio seams, and the main-actor shell the screen
     binds to. The transitions are not here: `CaptureState` performs what
     `Core`'s `CaptureMachine` decides, and holds only what cannot be pure —
@@ -99,27 +125,24 @@ the mode, nothing drives it).
   before building a screen: it lists the states the designs *don't* cover
   (permissions, interruptions, failures, save semantics) and where the bundle
   contradicts itself. Those are open questions, not settled design.
-- `docs/DECISIONS.md` — why the audio calls were made the way they were. Append
-  when a choice would otherwise be re-litigated; don't rewrite past entries.
+- `docs/DECISIONS.md` — why the audio, screen and repo-setup calls were made the
+  way they were. Append when a choice would otherwise be re-litigated; don't
+  rewrite past entries.
 
 ## Commands
 
 - **Verify** (lint + build + unit tests, all stacks): `.claude/verify.sh`
   Runs swift-format lint over every tracked `.swift`, `swift test` on `Core`,
   then `xcodebuild -only-testing:DemoMemosTests` against a booted iPhone
-  simulator if there is one, else the first available. UI tests are CI's job.
-  Exits non-zero if *nothing* was verifiable, so a green tick always means
-  something ran.
+  simulator if there is one, else the first available. Exits non-zero if
+  *nothing* was verifiable, so a green tick always means something ran.
 - **Single app test**: `xcodebuild test -project apps/ios/DemoMemos.xcodeproj -scheme DemoMemos -destination 'platform=iOS Simulator,name=iPhone 17' -only-testing:DemoMemosTests/SuiteName/testName`
 - **Single Core test**: `swift test --package-path apps/ios/Core --filter testName`
 - **Format one file**: `.claude/format.sh <path>` (runs automatically after every
   write). Formatting rules live in that script, not here. It no-ops when the
   formatter (`swift-format`, local `prettier`, `shfmt`) is absent — it never
-  installs anything.
-- **Fix a lint failure across the repo**:
-  `git ls-files '*.swift' | xargs -n1 .claude/format.sh`
-  Needed after Xcode generates a file, since Xcode indents 4 and swift-format
-  indents 2. The write hook only fires on Claude's edits.
+  installs anything. A repo-wide lint failure prints its own fix; `verify.sh`
+  carries the command.
 
 ## Signing & on-device builds
 
@@ -129,9 +152,14 @@ a Team ID isn't a secret but it is personal identity, and this repo is public.
 Simulator builds need no signing, so fresh clones and CI work with the file
 absent.
 
-Never let a `DEVELOPMENT_TEAM` land in `project.pbxproj` — Xcode's Signing &
-Capabilities UI re-stamps it, so check before committing. Credentials go in
-neither file; see `docs/SECURITY.md`.
+Xcode's Signing & Capabilities UI re-stamps `DEVELOPMENT_TEAM` into
+`project.pbxproj`. The pre-commit hook rejects that now, so this is a fact to
+recognise rather than a rule to remember. Credentials go in neither file; see
+`docs/SECURITY.md`.
+
+Opening the project in Xcode also reorders whole `project.pbxproj` sections
+(`XCLocalSwiftPackageReference` moves to the end) with nothing changed. That
+diff is noise — `git checkout` the file rather than committing it.
 
 ## Repo setup (once per clone)
 
@@ -152,5 +180,5 @@ touching capture, playback, the Enhance dial or `apps/ios/DemoMemos/Audio/` goes
 through the `ios-audio` skill (checked in at `.claude/skills/ios-audio/`) — it
 carries the effect-ladder reasoning the `DECISIONS.md` entries lean on.
 
-Merges are squash-only — the PR title and body become the commit, so they follow
-Conventional Commits like everything else.
+Merges are squash-only — the PR title and body become the commit, so they carry
+the commit convention in `docs/PRINCIPLES.md`.
