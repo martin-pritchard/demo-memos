@@ -22,12 +22,21 @@ the finished product, not the tree. What exists today:
   widens while the dry stays centred) → `mainMixerNode`. The warmth DSP itself —
   bells, shelf, drive, leveler, ceiling — is pure Swift in `Core`, tested offline
   against WAV fixtures.
-- **Screen** — `RecordingScreen`: a Record button, a Play button, and a `Slider`
-  for Enhance. Unstyled on purpose; `docs/design/` is the target.
+- **Screens** — two parallel worlds, and they are not yet joined.
+  `RecordingScreen` is the wired one: a Record button, a Play button and a
+  `Slider`, unstyled on purpose, and still what `DemoMemosApp` shows. The
+  designed ones — `OnboardFeatures`, `DemosListScreen`, `TakeScreen` — are
+  assembled from `Components/` and driven entirely by stub state (#51). They
+  match `docs/design/` and reach no recorder, player or disk; every state is a
+  `#Preview` away and nothing routes between them.
+- **Components** — `Waveform`, `TransportButton`, `EnhanceDial`, `TimerReadout`,
+  `CoachingLine`, `DemoRow`, `FeatureRow` (#48–#50), over the tokens in
+  `DesignTokens.swift` (#43).
 
-**Not built — don't assume these exist:** the Demos list, take persistence,
-naming, share, onboarding, count-in (it shipped in #12 and was lost to the #14
-rebuild), and the waveform (#36, #37).
+**Not built — don't assume these exist:** take persistence, naming, real share
+payloads, the `hasOnboarded` flag, any navigation between the three screens, and
+count-in (it shipped in #12 and was lost to the #14 rebuild — `TakeScreen` draws
+the mode, nothing drives it).
 
 ## Layout
 
@@ -39,8 +48,16 @@ rebuild), and the waveform (#36, #37).
     to. Imports `AVFAudio` but no UI framework. Every seam ships both halves
     (`docs/PRINCIPLES.ios.md` #3); the fakes live in `Fakes.swift`, in the app
     target rather than the test bundle so `#Preview` can reach them.
-  - `DemoMemos/RecordingScreen.swift` — the only screen, beside the composition
-    root in `DemoMemosApp.swift`. One screen does not yet earn a feature folder.
+  - `DemoMemos/Onboarding/`, `DemoMemos/Demos/`, `DemoMemos/Take/` — one folder
+    per screen, each holding the screen and its own stub-state type
+    (`DemoListItem`, `TakeScreenState`, `TakePresentation`). Feature folders,
+    per `docs/PRINCIPLES.md` #1; see `DECISIONS.md` for why `Components/` did
+    not get split up with them.
+  - `DemoMemos/Components/` — the shared UI layer the three screens compose.
+    Assembling a screen means using these; adding to them is a different ticket.
+  - `DemoMemos/RecordingScreen.swift` — the unstyled wired screen, beside the
+    composition root in `DemoMemosApp.swift`. Scaffolding that `TakeScreen`
+    replaces once the audio wiring lands.
   - `Core/` — local SPM package, scheme `Core`, Swift 6 language mode. This is
     the UI-free core (`docs/PRINCIPLES.md` #3). Today: `SampleBuffer`, the
     `AudioProcessor` seam, and the warmth chain (`WarmthParameters`,

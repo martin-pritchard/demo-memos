@@ -257,3 +257,54 @@ who wrapped a change in `withAnimation`. As built, the animation originates
 inside the component, which is what lets it own Reduce Motion for the epic the
 way #44 assigns: under it both animations resolve to `nil` and every value lands
 rather than travels.
+
+### The screens go in feature folders; the components stay shared (#51)
+
+`RecordingScreen.swift` sits beside the composition root because, as `CLAUDE.md`
+put it, one screen does not yet earn a feature folder. Three more screens is the
+pressure `docs/PRINCIPLES.md` #8 wants to see before adding structure, so
+`Onboarding/`, `Demos/` and `Take/` are folders now, each holding its screen and
+that screen's own state type.
+
+`Components/` was deliberately left alone. `FeatureRow` and `DemoRow` have one
+consumer each, so #2 ("colocate; promote only on second use") would have them
+move into `Onboarding/` and `Demos/` — but they were built as a shared component
+layer in #48–#50 and the ticket's own framing is "assemble from the existing
+components in `Components/`". Moving them is a refactor with its own blast
+radius, not part of assembling a screen. If a fourth screen arrives and the
+split still reads as group-by-type, that is the moment to revisit it.
+
+`RecordingScreen.swift` also stayed put. It is the scaffold `TakeScreen`
+replaces once the audio wiring lands; moving it now would be tidying something
+that is on its way out.
+
+### Neither screen declares its own `NavigationStack` (#51)
+
+`DemosListScreen` uses `.navigationTitle`, `TakeScreen` uses `.toolbar`, and
+neither wraps itself in a `NavigationStack` — the previews supply one. Which
+container presents the Take screen is a routing decision, and the handoff wants
+two different ones: `New Demo` opens it as a modal from the bottom (`ready`),
+while tapping a row opens the same screen at `playback` with a `‹ Demos` back
+control. A stack baked into the screen would settle that here, in the wrong
+ticket. Root navigation and the `hasOnboarded` flag are #51's named follow-ups.
+
+### Share is wired to the take's name, not a file (#51)
+
+Both `ShareLink`s — the list's swipe action and the Take screen's header — share
+`demo.name` / `state.title` as a string. There is nothing else to share: takes
+are not persisted, and "Export Audio…" implies rendering Enhance offline into a
+shareable asset, which is audio work with its own progress and failure states
+that `screen-states.md` lists as undesigned. The system sheet is real and
+present, which is what the assembly ticket is for; the payload is a placeholder
+and reads as one.
+
+### A zero-length take falls back to the resting waveform (#51)
+
+`screen-states.md` lists "Record then Stop immediately" under open questions —
+a 0:00 take with no bars, with no design for it. `WaveformGeometry` already
+answers it: an empty `bars` array is the resting line in every mode, so the
+assembled `stopped` screen shows a flat strip and an active `00:00.00` rather
+than a blank box. That is a consequence of an existing component's contract,
+not a new decision, and it is recorded here so nobody reads the resulting
+screenshot as a designed state. Whether a zero-length take should be capturable
+at all is still open.
