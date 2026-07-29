@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Build + static checks + unit tests. Fast — the full suite (UI tests) belongs in CI.
+# Build + static checks + unit tests. Fast, and it is the whole suite — there is
+# no CI and no UI test target.
 # Run by the SDLC plugin's Stop hook. Non-zero exit = the work is not done.
 #
 # A thin shim: it calls the project's canonical commands (swift-format, swift
@@ -63,7 +64,6 @@ if [ -d "apps/ios/DemoMemos.xcodeproj" ]; then
     fail "no iOS Simulator available to test against"
   else
     echo "    simulator: $SIM"
-    # -only-testing keeps this to unit tests. UI tests are CI's job.
     if ! xcodebuild test \
       -project apps/ios/DemoMemos.xcodeproj \
       -scheme DemoMemos \

@@ -43,3 +43,30 @@ if ! gitleaks git --staged --redact --no-banner; then
 MSG
   exit 1
 fi
+
+# ---------------------------------------------------------- identity hygiene
+# A Team ID is not a secret, so gitleaks has no opinion on it - but it is
+# personal identity and this repo is public. Xcode's Signing & Capabilities UI
+# re-stamps DEVELOPMENT_TEAM into project.pbxproj whenever it is touched, which
+# is exactly the kind of thing a human stops noticing. It belongs in the
+# gitignored Config/Local.xcconfig; see CLAUDE.md.
+if git diff --cached --name-only --diff-filter=ACM \
+  | grep -q 'project\.pbxproj$'; then
+  if git diff --cached -U0 -- '*project.pbxproj' \
+    | grep -E '^\+' \
+    | grep -q 'DEVELOPMENT_TEAM'; then
+    cat >&2 <<'MSG'
+
+  x DEVELOPMENT_TEAM is being added to project.pbxproj. Commit blocked.
+
+    Xcode put it there. Take it out - the Team ID belongs in
+    apps/ios/Config/Local.xcconfig, which is gitignored:
+
+      git checkout -p apps/ios/DemoMemos.xcodeproj/project.pbxproj
+
+    To override (you accept publishing it):  git commit --no-verify
+
+MSG
+    exit 1
+  fi
+fi
