@@ -1,24 +1,6 @@
 import AVFAudio
+import Core
 import Foundation
-
-nonisolated enum MicrophonePermission: Equatable {
-  case undetermined
-  case denied
-  case granted
-}
-
-/// Why a take ended. Every one of these leaves a finalised, playable file.
-nonisolated enum StopReason: Equatable {
-  /// The user tapped stop.
-  case user
-  /// A call, Siri, or an alarm took the session.
-  case interrupted
-  /// Headphones or an interface went away mid-take.
-  case routeLost
-  /// The media server died and took the session, recorder and player with it.
-  case mediaServicesReset
-  case failed(String)
-}
 
 /// The capture seam. See `docs/PRINCIPLES.ios.md` #3 — the fake half lives in
 /// `Fakes.swift` and is what every test and preview runs on.

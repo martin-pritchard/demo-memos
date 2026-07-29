@@ -1,3 +1,4 @@
+import Core
 import Foundation
 
 /// The fake halves of the audio seams, and the named scenarios that previews and
@@ -19,11 +20,18 @@ final class FakeRecorder: Recording {
   var startFailure: (any Error)?
   /// What `requestPermission()` resolves to when permission is undetermined.
   var permissionOnRequest: MicrophonePermission = .granted
+  /// Holds `requestPermission()` suspended until ``resumePrompt()``, so a test
+  /// can land a second record tap while the prompt is genuinely in flight. Only
+  /// the first call is held — a second returns straight away, so a regression
+  /// fails an expectation instead of deadlocking the suite.
+  var holdsPrompt = false
 
   private(set) var startCount = 0
   private(set) var stopCount = 0
   private(set) var permissionRequestCount = 0
   private(set) var startedURLs: [URL] = []
+
+  private var pendingPrompt: CheckedContinuation<Void, Never>?
 
   init(permission: MicrophonePermission = .granted) {
     self.permission = permission
@@ -31,8 +39,17 @@ final class FakeRecorder: Recording {
 
   func requestPermission() async -> MicrophonePermission {
     permissionRequestCount += 1
+    if holdsPrompt, permissionRequestCount == 1 {
+      await withCheckedContinuation { pendingPrompt = $0 }
+    }
     permission = permissionOnRequest
     return permission
+  }
+
+  /// Answers a prompt held by ``holdsPrompt``.
+  func resumePrompt() {
+    pendingPrompt?.resume()
+    pendingPrompt = nil
   }
 
   func start(to url: URL) throws {
