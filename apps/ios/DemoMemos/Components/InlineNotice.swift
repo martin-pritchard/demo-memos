@@ -109,6 +109,7 @@ extension TakeNoticeAction {
   var label: String {
     switch self {
     case .openSettings: "Open Settings"
+    case .tryAgain: "Try Again"
     }
   }
 }

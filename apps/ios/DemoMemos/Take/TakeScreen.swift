@@ -40,6 +40,12 @@ struct TakeScreen: View {
   /// job either.
   var onNoticeAction: (TakeNoticeAction) -> Void = { _ in }
 
+  /// The promised file behind the header's Share button, or nil when there is no
+  /// take to share. Nil in every preview, which is what keeps them running with
+  /// no exporter, no engine and no disk — the screen still acquires no data of
+  /// its own; the promise is handed in like everything else.
+  var share: SharedTake?
+
   private var presentation: TakePresentation { state.presentation }
 
   /// An alert is dismissed by the user, not by the notice going away — the
@@ -137,17 +143,26 @@ struct TakeScreen: View {
     }
 
     if presentation.showsShareAndDone {
-      ToolbarItem(placement: .topBarTrailing) {
-        // The take's name stands in for the file: rendering Enhance into a
-        // shareable asset is audio work, and the list has nothing real to point
-        // at yet. The sheet itself is the system's, per the handoff.
-        ShareLink(item: state.title) {
-          Image(systemName: "square.and.arrow.up")
-        }
-      }
+      ToolbarItem(placement: .topBarTrailing) { shareControl }
       ToolbarItem(placement: .topBarTrailing) {
         Button("Done", action: onDone).fontWeight(.semibold)
       }
+    }
+  }
+
+  /// The sheet is the system's, per the handoff, and it opens on the tap — the
+  /// file is *promised*, not waited for (`#17`). So there is nothing to draw
+  /// here but the glyph: no progress, no second modal, no disabled state while a
+  /// render runs. `SharedTake` is what makes that true.
+  @ViewBuilder private var shareControl: some View {
+    if let share {
+      ShareLink(item: share, preview: SharePreview(state.title)) {
+        Image(systemName: "square.and.arrow.up")
+      }
+    } else {
+      // Nothing to share yet. Dim rather than gone, so the header does not
+      // reflow the moment a take exists (`#16f`: never enabled-and-inert).
+      Image(systemName: "square.and.arrow.up").foregroundStyle(.tertiary)
     }
   }
 
