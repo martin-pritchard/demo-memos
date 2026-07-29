@@ -13,9 +13,12 @@ import Synchronization
 ///   node is started; nothing renders concurrently with them.
 /// - `render(into:)` runs on the realtime thread and is the *only* mutator of
 ///   the DSP state (cursor, kernel, smoothed warmth) once playback is live.
-/// - The dial (`setTargetWarmth`) and the end poll (`hasReachedEnd`) cross
+/// - The dial (`setTargetWarmth`), the end poll (`hasReachedEnd`), the playhead
+///   (`framesRendered`, `frameCount`) and the scrub (`seek(toFrame:)`) cross
 ///   threads through `Atomic` only — lock-free, allocation-free, no async, so
-///   the render block never blocks (`docs/PRINCIPLES.ios.md` #1).
+///   the render block never blocks (`docs/PRINCIPLES.ios.md` #1). In particular
+///   a seek never writes `cursor`: it parks a frame index the render block picks
+///   up, so the realtime thread stays the only writer of the DSP state.
 public final class WarmthRenderCore: @unchecked Sendable {
 
   private let sampleRate: Double
@@ -43,6 +46,17 @@ public final class WarmthRenderCore: @unchecked Sendable {
   private let targetWarmthBits: Atomic<UInt64>
   private let ended: Atomic<Bool>
 
+  /// The playhead, published by the render block so the main actor can read it
+  /// without touching `cursor`.
+  private let renderedFrames: Atomic<Int>
+  /// Length of the loaded take, published by `load` for the same reason —
+  /// `samples.count` is not safe to read while the render block owns the array.
+  private let loadedFrames: Atomic<Int>
+  /// A frame index parked by `seek(toFrame:)` for the render block to adopt.
+  /// `noSeek` means nothing pending; the render block clears it as it consumes it.
+  private let pendingSeek: Atomic<Int>
+  private static let noSeek = -1
+
   /// Below this the glide snaps to the target, so a move to 0 reaches *true*
   /// bypass and a move to any value settles instead of crawling forever.
   private let snapEpsilon = 1e-4
@@ -53,6 +67,9 @@ public final class WarmthRenderCore: @unchecked Sendable {
     self.kernel = WarmthKernel(parameters: warmthParameters(0), sampleRate: sampleRate)
     self.targetWarmthBits = Atomic(0.0.bitPattern)
     self.ended = Atomic(false)
+    self.renderedFrames = Atomic(0)
+    self.loadedFrames = Atomic(0)
+    self.pendingSeek = Atomic(Self.noSeek)
   }
 
   // MARK: - Setup (setup thread, before the node starts)
@@ -65,6 +82,11 @@ public final class WarmthRenderCore: @unchecked Sendable {
     self.samples = samples
     cursor = 0
     ended.store(false, ordering: .relaxed)
+    // A take always arms from frame zero, so a seek parked before `load` is
+    // discarded rather than carried into the new take.
+    pendingSeek.store(Self.noSeek, ordering: .relaxed)
+    loadedFrames.store(samples.count, ordering: .relaxed)
+    renderedFrames.store(0, ordering: .relaxed)
     currentWarmth = clampedTarget()
     appliedWarmth = .nan
     kernel.reset()
@@ -84,6 +106,29 @@ public final class WarmthRenderCore: @unchecked Sendable {
   /// thread never touches UI or observable state.
   public var hasReachedEnd: Bool { ended.load(ordering: .relaxed) }
 
+  // MARK: - Playhead (any thread)
+
+  /// Total frames in the loaded take; `0` before `load`.
+  public var frameCount: Int { loadedFrames.load(ordering: .relaxed) }
+
+  /// How far the playhead has advanced, in frames — `0` straight after `load`,
+  /// never past ``frameCount``. Published by the render block, so it reflects
+  /// what has actually been heard rather than what has been asked for: a seek
+  /// does not move it until the next block is rendered.
+  public var framesRendered: Int { renderedFrames.load(ordering: .relaxed) }
+
+  /// Move the playhead, clamped to `0...frameCount`. Takes effect on the next
+  /// `render(into:)` — the render thread stays the only writer of `cursor`.
+  ///
+  /// The end latch clears here rather than at the next render, so a take that
+  /// has finished reads as playable again the instant it is scrubbed back.
+  /// A seek made before `load` is discarded by it: a take arms from frame zero.
+  public func seek(toFrame frame: Int) {
+    let clamped = min(max(frame, 0), frameCount)
+    pendingSeek.store(clamped, ordering: .relaxed)
+    ended.store(false, ordering: .relaxed)
+  }
+
   private func clampedTarget() -> Double {
     Double(bitPattern: targetWarmthBits.load(ordering: .relaxed))
   }
@@ -96,6 +141,12 @@ public final class WarmthRenderCore: @unchecked Sendable {
   public func render(into output: UnsafeMutableBufferPointer<Float>) {
     let frames = output.count
     guard frames > 0 else { return }
+
+    // 0. Adopt a parked seek, if any. `exchange` both reads and clears it in one
+    //    lock-free step, so a seek arriving mid-block is picked up next time
+    //    rather than lost.
+    let sought = pendingSeek.exchange(Self.noSeek, ordering: .relaxed)
+    if sought != Self.noSeek { cursor = sought }
 
     // 1. Glide the single scalar toward the dial target, once per block. One
     //    pole with a per-block coefficient so the time constant holds whatever
@@ -127,6 +178,9 @@ public final class WarmthRenderCore: @unchecked Sendable {
       for i in toCopy..<frames { output[i] = 0 }
       ended.store(true, ordering: .relaxed)
     }
+    // Publish the playhead unconditionally: a block that copied nothing because
+    // the take is exhausted still parks the position at the end.
+    renderedFrames.store(cursor, ordering: .relaxed)
 
     // 4. warmth 0 is *true bypass*: the frames from step 3 are the recording,
     //    untouched. Otherwise colour in place — only the real frames, never the
