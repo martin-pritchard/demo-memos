@@ -93,9 +93,14 @@ struct TakeScreen: View {
       case .cancel:
         Button("Cancel", action: onCancel)
       case .backToDemos:
+        // An explicit stack rather than a `Label`: iOS 26's toolbar renders a
+        // `Label` icon-only however it is styled, and the design's back control
+        // is "‹ Demos" — the chevron alone loses where it goes back *to*.
         Button(action: onCancel) {
-          Label("Demos", systemImage: "chevron.left")
-            .labelStyle(.titleAndIcon)
+          HStack(spacing: DesignTokens.Spacing.hairline) {
+            Image(systemName: "chevron.left")
+            Text("Demos")
+          }
         }
       }
     }

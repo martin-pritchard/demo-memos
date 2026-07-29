@@ -70,13 +70,16 @@ struct OnboardFeatures: View {
   /// fill and its `0 6px 18px` amber shadow onto iOS 26's prominent glass
   /// button, which supplies both.
   private var continueButton: some View {
-    Button("Continue", action: onContinue)
-      .buttonStyle(.glassProminent)
-      .tint(DesignTokens.Palette.accent)
-      .controlSize(.large)
-      .frame(maxWidth: .infinity)
-      .padding(.horizontal, DesignTokens.Spacing.margin)
-      .padding(.bottom, DesignTokens.Spacing.label)
+    Button(action: onContinue) {
+      // The width goes on the *label*: put on the button it stretches the frame
+      // and leaves the capsule its natural size in the middle of it.
+      Text("Continue").frame(maxWidth: .infinity)
+    }
+    .buttonStyle(.glassProminent)
+    .tint(DesignTokens.Palette.accent)
+    .controlSize(.large)
+    .padding(.horizontal, DesignTokens.Spacing.margin)
+    .padding(.bottom, DesignTokens.Spacing.label)
   }
 }
 
