@@ -46,6 +46,11 @@ struct DemoMemosApp: App {
       recorder: AudioRecorder(),
       player: AudioPlayer(),
       folder: folder,
-      latestTake: RecordingsFolder.takes(in: folder).last)
+      latestTake: RecordingsFolder.takes(in: folder).last,
+      // The design's starting position for the dial — mid-scale, which the tone
+      // bands name "Warm". A product default, so it belongs here at the
+      // composition root rather than baked into the machine, which keeps 0 (true
+      // bypass) as its own neutral starting point.
+      warmth: 0.5)
   }
 }

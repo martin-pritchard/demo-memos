@@ -76,6 +76,7 @@ final class CaptureState {
     player: any Playing,
     folder: URL,
     latestTake: URL? = nil,
+    warmth: Double = 0,
     now: @escaping () -> Date = Date.init
   ) {
     self.recorder = recorder
@@ -84,7 +85,11 @@ final class CaptureState {
     self.now = now
     self.machine = CaptureMachine.State(
       permission: recorder.permission,
-      latestTake: latestTake)
+      latestTake: latestTake,
+      warmth: warmth)
+    // The dial's starting value has to reach the player too, or the first take
+    // plays dry while the screen says otherwise.
+    player.setWarmth(warmth)
 
     recorder.onStop = { [weak self] reason, url in
       self?.send(.recordingStopped(reason, url))
