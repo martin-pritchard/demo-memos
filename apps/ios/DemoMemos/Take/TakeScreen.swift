@@ -19,7 +19,17 @@ struct TakeScreen: View {
 
   @Binding var state: TakeScreenState
 
+  /// Discard the take and leave. The record flow's header-left.
   var onCancel: () -> Void = {}
+
+  /// Leave a saved take alone and go back to the list. Playback's header-left.
+  ///
+  /// Separate from ``onCancel`` even though this ticket routes neither: they are
+  /// different actions, and `screen-states.md` lists what `‹ Demos` does to an
+  /// unsaved rename and a changed Enhance value as an open question. One closure
+  /// for both would answer it here, in the wrong ticket, and answer it wrong.
+  var onBack: () -> Void = {}
+
   var onDone: () -> Void = {}
 
   /// The tapped transport role, whichever button it came from. The screen has
@@ -58,7 +68,7 @@ struct TakeScreen: View {
       )
 
       VStack(spacing: DesignTokens.Spacing.label) {
-        TimerReadout(elapsed: state.elapsed, isActive: presentation.isTimerActive)
+        TimerReadout(elapsed: state.timerReading, isActive: presentation.isTimerActive)
         // The slot is reserved in every mode, not just the one that fills it:
         // collapsing it would let a hint arriving mid-take shove the tray down.
         CoachingLine(level: presentation.showsCoaching ? state.coaching : .clear)
@@ -96,7 +106,7 @@ struct TakeScreen: View {
         // An explicit stack rather than a `Label`: iOS 26's toolbar renders a
         // `Label` icon-only however it is styled, and the design's back control
         // is "‹ Demos" — the chevron alone loses where it goes back *to*.
-        Button(action: onCancel) {
+        Button(action: onBack) {
           HStack(spacing: DesignTokens.Spacing.hairline) {
             Image(systemName: "chevron.left")
             Text("Demos")
@@ -123,6 +133,10 @@ struct TakeScreen: View {
   // MARK: - Transport tray
 
   private var transportTray: some View {
+    // The handoff puts 20pt between the dial and the buttons (26 in playback).
+    // No token names that gap, so this borrows the nearest one — `margin`'s doc
+    // line calls it the side margin, and 24 sits between the handoff's two
+    // values. Layout, not pixel values, is what the ticket asks to match.
     VStack(spacing: DesignTokens.Spacing.margin) {
       EnhanceDial(value: $state.enhance)
 
@@ -161,6 +175,7 @@ private struct TakePreview: View {
 #Preview("4.3 recording — low") { TakePreview(state: .recordingQuiet) }
 #Preview("4.3 recording — hot + clipping") { TakePreview(state: .recordingHot) }
 #Preview("4.4 stopped") { TakePreview(state: .stopped) }
+#Preview("4.4 stopped — playing, Resume dimmed") { TakePreview(state: .stoppedPlaying) }
 #Preview("4.5 playback") { TakePreview(state: .playback) }
 #Preview("4.5 playing — pause, Resume dimmed") { TakePreview(state: .playing) }
 #Preview("Enhance — Hall") { TakePreview(state: .playbackHall) }

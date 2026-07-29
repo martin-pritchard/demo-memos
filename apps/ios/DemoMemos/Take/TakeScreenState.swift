@@ -23,7 +23,11 @@ struct TakeScreenState: Equatable {
   /// Bar levels, `0…1`, newest last. Empty until something is captured.
   var bars: [Float] = []
 
+  /// Time captured so far. Counts up while recording.
   var elapsed: TimeInterval = 0
+
+  /// The whole take's length, once there is one.
+  var duration: TimeInterval = 0
 
   /// The playhead, `0…1`.
   var progress: Double = 0
@@ -40,6 +44,16 @@ struct TakeScreenState: Equatable {
   /// The §4 table, resolved for this state.
   var presentation: TakePresentation {
     TakePresentation(mode: mode, isPlaying: isPlaying)
+  }
+
+  /// What the readout shows. §4 gives the timer two jobs: it counts captured
+  /// time in the record flow, and once a take exists it "reads playhead" — which
+  /// is also what makes the time label track the centre marker while scrubbing.
+  var timerReading: TimeInterval {
+    switch mode {
+    case .ready, .countIn, .recording: elapsed
+    case .stopped, .playback: progress * duration
+    }
   }
 }
 
@@ -85,19 +99,31 @@ extension TakeScreenState {
     coaching: .hot
   )
 
-  /// 4.4 — the take just stopped. Playhead parked at the end.
+  /// 4.4 — the take just stopped. Playhead parked at the end, so the readout
+  /// shows the whole take.
   static let stopped = TakeScreenState(
     mode: .stopped,
     bars: Bars.take,
-    elapsed: 37.0,
+    duration: Bars.takeDuration,
     progress: 1
+  )
+
+  /// 4.4 while playing — the sub-state table applies the Play↔Pause flip and the
+  /// dimmed Resume to 4.4 as well as 4.5, and a preview cannot reach it by
+  /// tapping (the transport reports out; nothing here plays).
+  static let stoppedPlaying = TakeScreenState(
+    mode: .stopped,
+    bars: Bars.take,
+    duration: Bars.takeDuration,
+    progress: 0.62,
+    isPlaying: true
   )
 
   /// 4.5 — opened from the list, paused partway in.
   static let playback = TakeScreenState(
     mode: .playback,
     bars: Bars.take,
-    elapsed: 14.6,
+    duration: Bars.takeDuration,
     progress: 0.4
   )
 
@@ -105,7 +131,7 @@ extension TakeScreenState {
   static let playing = TakeScreenState(
     mode: .playback,
     bars: Bars.take,
-    elapsed: 14.6,
+    duration: Bars.takeDuration,
     progress: 0.4,
     isPlaying: true
   )
@@ -115,7 +141,7 @@ extension TakeScreenState {
   static let playbackHall = TakeScreenState(
     mode: .playback,
     bars: Bars.take,
-    elapsed: 14.6,
+    duration: Bars.takeDuration,
     progress: 0.4,
     enhance: 1
   )
@@ -130,6 +156,10 @@ extension TakeScreenState {
 /// Fixture bar levels. The screen owns no time, so a state is just an array —
 /// which is what makes every one of these previewable.
 private enum Bars {
+
+  /// 420 bars at the handoff's ~95ms per bar — the length the `take` fixture
+  /// would have been captured over, so the readout and the strip agree.
+  static let takeDuration: TimeInterval = 420 * 0.095
 
   /// A take with a shape to it: quiet start, loud middle, a tail.
   static let take: [Float] = (0..<420).map { index in
