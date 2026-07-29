@@ -28,8 +28,21 @@ struct TransportButton: View {
   /// exists, Resume while playing.
   private static let disabledOpacity: Double = 0.35
 
+  /// The opacity a *blocked* transport button dims to — Record with no
+  /// microphone behind it (`#15a`).
+  private static let blockedOpacity: Double = 0.45
+
   let role: TransportRole
   let action: () -> Void
+
+  /// The recorder is out of action — no microphone, or no permission to use it.
+  ///
+  /// A second, deeper level of disabled than "no take yet", and the design draws
+  /// it differently (`#15a`): the amber disc goes grey, the control sits at 45%
+  /// rather than 35%, and the label dims too. That last part is the exception to
+  /// the rule below, and it is deliberate: a dim label on a grey disc is what
+  /// says *the recorder*, not *this take*, is unavailable.
+  var isBlocked: Bool = false
 
   @Environment(\.isEnabled) private var isEnabled
   @Environment(\.colorScheme) private var colorScheme
@@ -62,12 +75,17 @@ struct TransportButton: View {
       // Only the disc dims. The label stays at full contrast — it is still
       // telling you what the button is for, and dimming it twice reads as two
       // levels of disabled.
-      .opacity(isEnabled ? 1 : Self.disabledOpacity)
+      .opacity(isBlocked ? Self.blockedOpacity : (isEnabled ? 1 : Self.disabledOpacity))
       .animation(.easeInOut(duration: 0.2), value: isEnabled)
+      .animation(.easeInOut(duration: 0.2), value: isBlocked)
 
       Text(appearance.label)
         .font(DesignTokens.Typography.transportLabel)
-        .foregroundStyle(DesignTokens.Palette.textSecondary)
+        .foregroundStyle(
+          isBlocked
+            ? AnyShapeStyle(DesignTokens.Palette.textQuaternary)
+            : AnyShapeStyle(DesignTokens.Palette.textSecondary)
+        )
         // The button already carries this as its accessibility label; left
         // visible to VoiceOver it would be announced a second time.
         .accessibilityHidden(true)
@@ -83,7 +101,13 @@ struct TransportButton: View {
     switch appearance.figure {
     case .disc(let scale):
       Circle()
-        .fill(DesignTokens.Palette.accent)
+        // Grey, not dimmed amber: nothing on a blocked screen should still read
+        // as inviting (`#15a`).
+        .fill(
+          isBlocked
+            ? AnyShapeStyle(DesignTokens.Palette.textTertiary)
+            : AnyShapeStyle(DesignTokens.Palette.accent)
+        )
         .frame(width: Self.diameter * scale, height: Self.diameter * scale)
 
     case .roundedSquare(let scale, let radius):

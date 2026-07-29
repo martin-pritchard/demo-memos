@@ -11,11 +11,19 @@ import SwiftUI
 struct DemoMemosApp: App {
 
   /// The one place dependencies are constructed (`docs/PRINCIPLES.md` #6).
-  @State private var state = DemoMemosApp.makeCaptureState()
+  @State private var model = TakeScreenModel(capture: DemoMemosApp.makeCaptureState())
 
   var body: some Scene {
     WindowGroup {
-      RecordingScreen(state: state)
+      // `TakeScreen` draws its header as a `.toolbar` and brings no stack of its
+      // own, so the container owes it one. Routing between screens is #5x — this
+      // stack has exactly one thing in it.
+      NavigationStack {
+        TakeScreen(
+          state: model.binding,
+          onTransport: model.transport,
+          onNoticeAction: model.perform)
+      }
     }
   }
 

@@ -1,3 +1,4 @@
+import Core
 import Foundation
 
 /// Everything `TakeScreen` draws, as one value.
@@ -55,7 +56,15 @@ struct TakeScreenState: Equatable {
 
   /// The §4 table, resolved for this state.
   var presentation: TakePresentation {
-    TakePresentation(mode: mode, isPlaying: isPlaying)
+    TakePresentation(mode: mode, isPlaying: isPlaying, isRecordBlocked: isRecordBlocked)
+  }
+
+  /// A mic-state notice is the one thing that puts the recorder out of action.
+  /// A playback failure or a capacity warning explains something without
+  /// stopping you recording, so neither dims Record (`#15`: only the record flow
+  /// is affected).
+  private var isRecordBlocked: Bool {
+    notice?.form == .line && notice?.rank == .micState
   }
 
   /// What the readout shows. §4 gives the timer two jobs: it counts captured
@@ -163,6 +172,21 @@ extension TakeScreenState {
   /// the waveform falls back to its resting line rather than drawing a blank
   /// box.
   static let zeroLength = TakeScreenState(mode: .stopped, elapsed: 0)
+
+  /// S13 — the microphone is off. `#15a`: Record goes grey and dims to 45%, the
+  /// dial dims with it because there is nothing to shape, and the reason takes
+  /// the reserved slot with **Open Settings** as a capsule. Nothing else moves,
+  /// so the screen reads the same the instant access comes back.
+  static let micDenied = TakeScreenState(notice: TakeNotice(.permissionDenied))
+
+  /// Capture stopped against expectation (`#15e`). The alert leads with what was
+  /// saved; behind it sits the normal stopped screen with the take intact.
+  static let recordingFailed = TakeScreenState(
+    mode: .stopped,
+    bars: Bars.take,
+    duration: Bars.takeDuration,
+    notice: TakeNotice(.stopped(.failed("the disk is full")))
+  )
 }
 
 /// Fixture bar levels. The screen owns no time, so a state is just an array —

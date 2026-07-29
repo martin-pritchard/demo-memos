@@ -301,7 +301,7 @@ struct CoachingLevelTests {
   @Test func clearSaysNothingButStillReservesItsSlot() {
     #expect(CoachingLevel.clear.message == "")
     #expect(CoachingLevel.clear.isWarning == false)
-    #expect(CoachingLine.slotHeight == 24)
+    #expect(InlineNotice.slotHeight == 24)
   }
 
   @Test func lowAsksForALittleMoreProximity() {
@@ -332,7 +332,7 @@ struct CoachingLevelTests {
   @Test func theSlotHeightIsTheSameForEveryLevel() {
     for level in CoachingLevel.allCases {
       _ = level.message
-      #expect(CoachingLine.slotHeight == 24, "slot height changed for \(level)")
+      #expect(InlineNotice.slotHeight == 24, "slot height changed for \(level)")
     }
   }
 
