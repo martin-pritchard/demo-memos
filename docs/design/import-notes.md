@@ -10,6 +10,59 @@ Claude Design project **Demo Memo App Design**
 (`50eeb9e6-61b6-45ac-ad1e-53f0e01d36de`), the `design_handoff_demo_memos/`
 bundle. Imported 2026-07-28 via the `claude_design` MCP.
 
+### Re-import 2026-07-29 (second pass) — turn 16 reversed, and a source change
+
+**Read this before trusting `README.md` as verbatim.**
+
+Turn 16 was rewritten the same day and marked **FINAL**, reversing the design
+imported in the first pass below: the notice **row** and **content block** forms
+are gone, and *one reserved slot above the transport carries every notice*,
+shared with the coaching line and resolved by precedence (mic state → playback
+failure → capacity → coaching). Turn 17 (sharing a rendered file) also landed.
+
+**Source changed this pass.** The `design_handoff_demo_memos/` bundle had not
+been re-exported — it still carried the superseded three-form turn 16 and no
+turn 17 at all. So `demo-memo.dc.html` and `demo-scene.jsx` were taken from the
+project **root** (`Demo Memo.dc.html`, `demo-scene.jsx`), which is the live doc
+and the one marked FINAL. `support.js` and `ios-frame.jsx` were diffed against
+root and are byte-identical, so they still match both sources.
+
+**`README.md` is no longer purely verbatim.** It exists *only* in the stale
+handoff folder — there is no root copy to re-import — so three sections were
+reconciled by hand against the FINAL doc rather than replaced:
+
+- the message-channel block, rewritten from "two channels, never one" to the
+  one reserved line plus the precedence rule
+- the disabled-Record paragraph, which pointed at the deleted content-block form
+- a new paragraph under **Share sheet** carrying turn 17, which the handoff
+  README predates entirely
+
+Everything else is still the designer's own text. The fix is a re-export of
+`design_handoff_demo_memos/`, after which `README.md` can be replaced wholesale
+and this caveat deleted.
+
+### Re-import 2026-07-29 (first pass) — turns 15 & 16
+
+The designer added two turns answering the states #53 was blocked on:
+**`#15` microphone permission** (the four unavailable states, their copy, the
+shared disabled-Record treatment and the mid-take alerts) and **`#16` where a
+notice lives** (three notice forms, the routing rule for which notice uses
+which, and the one-rule answer on dimmed-vs-inert transport buttons).
+
+Three files changed and were re-imported; the other two were checked and left
+alone:
+
+| File | This round |
+|---|---|
+| `demo-memo.dc.html` | Replaced. 38 KB → 97 KB — turns 15, 16 and the state register `#14`, plus the component inventory `#13`. |
+| `demo-scene.jsx` | Replaced. +120 lines, additive: a `micOff` glyph, `perm` / `notice` / `noticeAt` / `alert` props on `TakeScreen`, the three notice forms, the blocked-Record button, and a new `SystemAlert` component. Six lines changed, all to thread a `dim` flag through `labeled()` and to wrap the Enhance dial in the disabled treatment. |
+| `README.md` | **Not replaced — edited in place.** Every change was additive and localised, so the new "Two message channels", "One transport rule" and "Microphone permission & input availability" sections were inserted verbatim after **Naming**, and the anchors line gained `#15a`–`#15g` and `#16a`–`#16f`. The rest of the file is untouched, so this stays the designer's text. |
+| `ios-frame.jsx` | Unchanged. Verified head and tail against the remote — identical, and it is prototype scaffolding the handoff says to ignore. |
+| `support.js` | Unchanged. Generated prototype runtime; not re-fetched. |
+
+`screen-states.md` was updated to match — it is this repo's analysis, not the
+designer's, so it tracks the bundle rather than being replaced by it.
+
 ## Contents
 
 | File | Notes |

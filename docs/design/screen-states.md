@@ -87,6 +87,73 @@ All five are ✅ (`#1b`, `#8a`, `#3a`, `#1c`; dark twins `#2b` / `#2c`).
 | **Clipping bars** | ⚠️ | While recording, a bar ≥ 0.9 gets a red `#FF453A` top segment and a red glow. Only the token is documented; the behaviour appears in `demo-scene.jsx` alone |
 | **Share sheet** | ✅ | Over 4.4 or 4.5 |
 
+### The reserved line — one slot, one resolver
+
+Settled by `#16`, **FINAL**. One reserved slot above the transport carries
+**every** in-place message: centred line, optional second line, optional tinted
+capsule. No cards, no empty states, no second channel — the row and full-block
+forms explored earlier are **gone**. The slot is the only form that already
+exists in the layout, and using it keeps the screen identical in every state:
+nothing above it moves, nothing below it jumps.
+
+It is shared with the transient coaching line, so it resolves by **precedence,
+not a second channel**:
+
+> **mic state → playback failure → capacity → coaching** — highest one wins.
+
+They barely compete in practice: coaching only speaks while capture is running,
+and every mic notice means capture can't run. Two behavioural differences hold,
+and they are the whole distinction between the two kinds of message:
+
+- A **notice** appears instantly and **persists**; **coaching** cross-fades.
+- Only a **notice** may carry an **action**.
+
+| Message | Channel | Form | |
+|---|---|---|---|
+| Mic denied / restricted / unavailable | Notice | Reserved line + Open Settings capsule | ✅ `#16a`, dark `#16e` |
+| Playback failure — file missing or damaged | Notice | Reserved line + **Try Again** | ✅ `#16d` |
+| Low space, non-default input | Notice | Reserved line, no capsule | ⚠️ S20 / S21 |
+| Input too quiet / clipping | Coaching | Reserved line, three-case enum, cross-fades | ✅ |
+| Recording failure — write error, storage full, revoked mid-take | Alert | System alert | ✅ `#15e` |
+| Interruption — call, Siri, another app | Neither | State change only: header **Paused**, right button Resume | ⚠️ S22, no mock |
+| Playback reached the end | Neither | Marker parks, button returns to Play | ✅ |
+
+**In build:** one slot, one resolver — the screen picks the highest-precedence
+message and renders it. `#16` names `InlineNotice` (`#13a`) as *being* that
+slot rather than a new component, so this grows the existing coaching line
+rather than adding a sibling to it.
+
+**One transport rule** (`#16f`): a transport button is dim whenever it *cannot
+act* — `opacity .35` for Play/Resume, `.45` for the blocked Record disc. "No
+take yet" and "no microphone" get the same treatment. Never enabled-and-inert.
+This retires the open question of whether `.resume` should be dimmed or
+enabled-and-inert: **dimmed**.
+
+### Microphone unavailable — the four states
+
+Settled by `#15`. **Only the record flow is affected** — the list and playback
+stay fully usable, so nothing already captured is held hostage to a permission.
+A permission notice is **never red**: it is a state, not an error.
+
+| # | Case | `perm` | Line | Route out | | |
+|---|---|---|---|---|---|---|
+| 4.6 | **Denied** (S13) | `denied` | "Microphone access is off" | Open Settings capsule | ✅ `#15a` | In place, no alert |
+| 4.7 | **Restricted** (S41) | `restricted` | "Microphone access is restricted" / "Managed in Screen Time" | none — the switch won't move | ✅ `#15b` | In place, no alert |
+| 4.8 | **No input device** (S14) | `nodevice` | "No microphone available" / "Connect a microphone to record" | none — Settings can't fix hardware | ✅ `#15c` | Never phrased as permission |
+| 4.9 | **Revoked between launches** | `revoked` | as denied, plus an alert on entry | Not Now / Open Settings | ✅ `#15d` | It worked last time, so it earns the interrupt |
+
+**Disabled-Record treatment**, shared by all four: the ring holds its place at
+`4pt recBorder`, the accent disc becomes a `text3` grey disc at the same 78%
+size, the whole button sits at `opacity 0.45` (`.2s`), and the "Record" label
+drops to `text4`. The Enhance dial dims to `opacity 0.4` and stops accepting
+input. The reason itself goes in the reserved line, never in a block or a card.
+Dark twin: `#15f`.
+
+**Mid-take alerts** — both land on `stopped` with the partial take, and both
+lead with what *survived*, by name and length, before mentioning Settings:
+revoked mid-take (S28) and storage full (S27), the same component with two
+words changed.
+
 ## 5. Share sheet
 
 Presented / dismissed, over the list or the Take screen. The bundle draws the
@@ -127,19 +194,27 @@ decision; none should be improvised silently at build time.
 
 ### Permissions and availability
 
-- **Mic permission.** The handoff assumes "mic permission prompt on first
-  record" and stops there. Undesigned: the pre-prompt moment, **denied**,
-  **restricted**, and permission revoked in Settings between launches. There is
-  no disabled-Record treatment and no route to Settings — on the first tap of
-  the app's primary action.
+- ~~**Mic permission.**~~ **Closed by `#15`** — denied, restricted, no input
+  device and revoked-between-launches all have renders, copy, a shared
+  disabled-Record treatment and a routing rule. See [4.6–4.9](#microphone-unavailable--the-four-states).
+- **The pre-prompt moment.** Still undesigned: what the screen shows between
+  tapping Record for the first time and the system prompt being answered.
+  `#15` covers every *outcome*, not the wait.
 - **Mic already in use** by another app or an active call. Record should be
-  unavailable; no state exists for it.
+  unavailable; no state exists for it. `#15c`'s `nodevice` treatment is the
+  obvious fit, but the line ("No microphone available") is wrong for it and the
+  case is not named in `#15g`.
 
 ### Audio session and lifecycle
 
 - **Interruptions** — call, Siri, alarm, another app taking the session, during
-  record or playback. No paused-by-interruption state, no resume-or-discard
-  decision, no indicator.
+  record or playback. **Partly closed by `#16f`**: the *channel* is decided —
+  neither notice nor alert, a state change only, with the header reading
+  **Paused** and the right transport button becoming Resume, on the reasoning
+  that "a notice explaining the thing you just lived through is noise, and the
+  take is intact". Still open: no mock exists (S22), and the design assumes a
+  working Resume, which is #4. Until then the state is reachable with its
+  intended affordance dim.
 - **Route change** — headphones unplugged mid-record or mid-playback. iOS
   convention is to pause; nothing is drawn.
 - **Backgrounding while recording** — continue or stop? Undecided.
@@ -147,14 +222,24 @@ decision; none should be improvised silently at build time.
 ### Failure and recovery
 
 - **Recording failures** — disk full, write error, session activation failure,
-  encoder failure mid-take. The design has no error surface anywhere: no alert,
-  no inline error, no failed-take row.
+  encoder failure mid-take. **Partly closed by `#15e` / `#16f`**: there is now
+  an error surface — a system alert, used only when capture stopped or never
+  started *against the user's expectation*, leading with what was saved. Storage
+  full (S27) and revoked mid-take (S28) have final copy. Still open: write
+  error, session-activation failure and encoder failure are not named, and
+  there is no failed-take row.
 - **Crash recovery.** `RecordingRepair` already exists for takes a jetsam kill
   left unfinalised, so recovered takes are real. Undesigned: how a recovered
   row reads, what an unknown duration shows, whether anything prompts on the
   next launch.
 - **Playback file errors** — file missing, moved, or corrupt (the row exists,
-  the audio doesn't). No broken-row or failed-playback state.
+  the audio doesn't). **Closed on the Take screen by `#16d`**: the reserved
+  line, not an alert and not an empty state — "This demo couldn't be opened" /
+  "The audio file is missing or damaged. The rest of your demos are fine." with
+  a **Try Again** action. The take's drawing survives (peaks are stored
+  locally), so the screen stays recognisable. Still open: the *list* side — no
+  broken-row treatment exists, and `#16f` says only that the failure is local
+  to one demo.
 - **Export / share processing.** "Export Audio…" implies rendering Enhance
   offline into a shareable file, which takes real time on a long take. No
   progress, cancel, or failure state — the sheet simply appears.

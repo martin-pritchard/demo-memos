@@ -48,8 +48,473 @@ a{color:#c25c00}a:hover{color:#ff7a00}
 .ladder-item{display:flex;flex-direction:column;align-items:center;gap:12px}
 .ladder-lab{font:500 9.5px/1.45 ui-monospace,Menlo,monospace;color:rgba(0,0,0,.45);text-align:center}
 .ladder-lab b{color:#1a1a1a;font-weight:600}
+/* component breakdown */
+.cb-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(296px,1fr));gap:16px;max-width:1240px}
+.cb-card{background:#fff;border:1px solid rgba(0,0,0,.08);border-radius:16px;padding:18px 20px 20px}
+.cb-hd2{font:600 10px/1 system-ui,sans-serif;letter-spacing:.09em;text-transform:uppercase;color:#c25c00;margin:0 0 14px}
+.cb-comp{padding:11px 0 0;margin-top:11px;border-top:1px solid rgba(0,0,0,.06)}
+.cb-comp.first{border-top:0;margin-top:0;padding-top:0}
+.cb-name{font:600 12.5px ui-monospace,Menlo,monospace;color:#1a1a1a}
+.cb-tag{margin-left:7px;font:600 9px ui-monospace,Menlo,monospace;color:#8a8474;letter-spacing:.06em}
+.cb-tag.build{color:#c25c00}
+.cb-role{margin:4px 0 0;font:400 11.5px/1.5 system-ui,sans-serif;color:rgba(0,0,0,.55)}
+.cb-chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
+.cb-chip{font:500 10px/1 ui-monospace,Menlo,monospace;padding:4px 6px;border-radius:5px;background:#f0ede6;color:rgba(0,0,0,.6)}
+.ld{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;max-width:1240px}
+.ld-step{background:#fff;border:1px solid rgba(0,0,0,.08);border-top-width:3px;border-radius:14px;padding:13px 15px 16px}
+.ld-n{font:600 9.5px/1 ui-monospace,Menlo,monospace;letter-spacing:.08em}
+.ld-t{font:600 13px/1.25 system-ui,sans-serif;color:#1a1a1a;margin:6px 0 5px}
+.ld-d{font:400 11.5px/1.5 system-ui,sans-serif;color:rgba(0,0,0,.55)}
+.mxw{max-width:1240px;background:#fff;border:1px solid rgba(0,0,0,.08);border-radius:16px;overflow:hidden}
+.mx{width:100%;border-collapse:collapse}
+.mx th{font:600 9.5px/1 system-ui,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:rgba(0,0,0,.4);text-align:left;padding:13px 16px;background:#f7f5f1;border-bottom:1px solid rgba(0,0,0,.08)}
+.mx td{padding:12px 16px;vertical-align:top;border-bottom:1px solid rgba(0,0,0,.06);font:400 12px/1.55 system-ui,sans-serif;color:rgba(0,0,0,.6)}
+.mx tr.sec td{background:#f2efe9;font:600 10.5px/1 system-ui,sans-serif;letter-spacing:.07em;text-transform:uppercase;color:#1a1a1a;padding:11px 16px}
+.mx td.n{font:600 12.5px/1.45 system-ui,sans-serif;color:#1a1a1a;width:172px}
+.mx td.c{font:500 10.5px/1.5 ui-monospace,Menlo,monospace;color:#8a8474;width:146px}
+.mx td.l{width:104px}
+.lv{display:inline-block;font:600 9.5px/1 ui-monospace,Menlo,monospace;padding:5px 7px;border-radius:5px;white-space:nowrap}
+.lv0{background:#eceae4;color:rgba(0,0,0,.5)}
+.lv1{background:#fdf1e2;color:#95662a}
+.lv2{background:#ffe8d4;color:#c25c00}
+.lv3{background:#ffd9b8;color:#9c4900}
+.lv4{background:#fbdcd8;color:#a3231a}
+.oq{max-width:820px;margin:0;padding:0 0 0 18px;font:400 12.5px/1.75 system-ui,sans-serif;color:rgba(0,0,0,.55)}
+.oq b{color:#1a1a1a;font-weight:600}
+/* state register */
+.mx td.id{font:600 10.5px/1.5 ui-monospace,Menlo,monospace;color:#b3ab9b;width:38px;text-align:right;padding-right:0}
+.mx td.m{width:96px}
+.mx td.x{font:400 12px/1.55 system-ui,sans-serif;color:rgba(0,0,0,.6);width:210px}
+.brf{display:inline-block;width:6px;height:6px;border-radius:2px;background:#ff7a00;margin-left:6px;vertical-align:1px}
+.mk-done{background:#eceae4;color:rgba(0,0,0,.5)}
+.mk-todo{background:#ffe8d4;color:#c25c00}
+.mk-none{background:none;color:rgba(0,0,0,.28);padding-left:0}
+.mk-open{background:#fbdcd8;color:#a3231a}
+.tally{display:flex;flex-wrap:wrap;gap:10px;margin:0 0 18px}
+.tally-i{background:#fff;border:1px solid rgba(0,0,0,.08);border-radius:12px;padding:11px 15px 12px;min-width:96px}
+.tally-n{font:600 22px/1 system-ui,sans-serif;color:#1a1a1a;letter-spacing:-.02em}
+.tally-l{font:500 10px/1.3 ui-monospace,Menlo,monospace;color:rgba(0,0,0,.45);margin-top:5px;text-transform:uppercase;letter-spacing:.05em}
+.legend{display:flex;flex-wrap:wrap;gap:16px;margin:0 0 14px;font:500 11px/1 system-ui,sans-serif;color:rgba(0,0,0,.5);align-items:center}
 </style>
 </helmet>
+<div class="dv-group" id="grp-build"><span class="dv-gnum">0</span><span class="dv-gname">Component breakdown &amp; system states</span></div>
+<section class="dv-turn" id="t17">
+  <div class="dv-thd"><a class="dv-tid" href="#t17">17</a><span class="dv-tname">Sharing needs a render &#183; sheet first, file promised &#183; FINAL</span></div>
+  <p class="dv-intro"><b>Settled: the sheet opens on the tap and the file is promised, not waited for.</b> &#8220;Progress, then the sheet&#8221; made the person wait before they were allowed to say what they wanted &#8212; and what they wanted (send this to Dan) is knowable <i>now</i>, while the render is still running. iOS is built for exactly this: the share sheet is raised immediately and handed a <b>promised file</b> (<code>UIActivityItemProvider</code>), so choosing a destination and rendering happen in parallel; pick AirDrop at 40% and the system waits on the provider and shows its own progress. Both phones auto-run the render on load &#8212; <b>close the sheet and tap Share to replay it</b>.</p>
+  <p class="dv-intro" style="margin-bottom:26px"><b>The bigger lever is upstream.</b> This UI only exists because Enhance is a live setting rather than baked in on save &#8212; open question in <a class="dv-oid" href="#13d">13d</a>. If the file is rendered on save, or cached after the first share, then sharing an unchanged demo is a file copy: no progress, no promise, sheet opens instantly. What&#8217;s below is the <b>slow path</b>, hit only when Enhance moved since the last render.</p>
+
+  <div class="dv-opts">
+    <div class="dv-opt" id="17b">
+      <div class="dv-olabel"><a class="dv-oid" href="#17b">17b</a><span><b>Sheet first, file promised</b> &#8212; every destination is live from the first frame. The only progress on screen sits on the header row, attached to the file it describes: the subtitle counts, and a 3px bar runs under it. Nothing dims, nothing is disabled, and there is no second modal.</span></div>
+      <x-import component-from-global-scope="TakeScreen" from="./ios-frame.jsx ./demo-scene.jsx" mode="playback" export-flow="promise" scrub="twin" dim="fade" fade-span="6" fade-min="0.45" tall="md" dot="off" line-w="4" edge="0" hint-size="402px,874px"></x-import>
+    </div>
+    <div class="dv-opt" id="17d">
+      <div class="dv-olabel"><a class="dv-oid" href="#17d">17d</a><span><b>Dark</b> &#8212; the same flow on near-black. Progress is the only new use of amber; the destinations don&#8217;t dim.</span></div>
+      <x-import component-from-global-scope="TakeScreen" from="./ios-frame.jsx ./demo-scene.jsx" mode="playback" export-flow="promise" dark="true" scrub="twin" dim="fade" fade-span="6" fade-min="0.45" tall="md" dot="off" line-w="4" edge="0" hint-size="402px,874px"></x-import>
+    </div>
+  </div>
+
+  <div class="dv-opt" id="17e" style="margin-top:34px">
+    <div class="dv-olabel"><a class="dv-oid" href="#17e">17e</a><span><b>Which one runs when</b> &#8212; one rule per situation, so no path shows progress it doesn&#8217;t need.</span></div>
+    <div class="mxw">
+      <table class="mx">
+        <thead><tr><th>Situation</th><th>What happens</th><th>Why</th><th>Level</th></tr></thead>
+        <tbody>
+          <tr><td class="n">Already rendered &#8212; Enhance unchanged since the last share</td><td class="x">Sheet opens immediately. No ring, no bar, nowhere.</td><td class="x">The file exists. Progress for a copy is a lie about how long things take, and it trains people to expect a wait.</td><td class="l"><span class="lv lv0">0 &#183; silent</span></td></tr>
+          <tr><td class="n">Render under ~500&#8239;ms</td><td class="x">Sheet opens; the header shows nothing unless the deadline passes, then the bar fades in.</td><td class="x">A progress indicator that appears and disappears inside half a second reads as a glitch. Same trick iOS uses for spinners.</td><td class="l"><span class="lv lv0">0 &#183; silent</span></td></tr>
+          <tr><td class="n">Normal render &#8212; a few seconds</td><td class="x"><a class="dv-oid" href="#17b">17b</a>. Sheet up, promised file, progress on the header row.</td><td class="x">Intent and work run in parallel. This is the default path.</td><td class="l"><span class="lv lv1">1 &#183; in place</span></td></tr>
+          <tr><td class="n">Long render &#8212; a 40-minute take</td><td class="x">Sheet closes on the pick; the render finishes in the <b>reserved notice slot</b> (<a class="dv-oid" href="#16a">16a</a>) with the share glyph as a ring. Screen stays fully live.</td><td class="x">Nobody should hold a sheet open for a minute. The slot for a persistent mid-flow status already exists, so this needs no new component.</td><td class="l"><span class="lv lv1">1 &#183; in place</span></td></tr>
+          <tr><td class="n">Share from a row swipe in the list</td><td class="x">Same promise, opened from the row. The row&#8217;s length is replaced by a ring &#8212; the <b>processing</b> variant of <code>DemoRow</code> (<b>S07</b>).</td><td class="x">The list already has a shape for &#8220;this demo is busy&#8221;. Reuse it rather than inventing a second one.</td><td class="l"><span class="lv lv2">2 &#183; row</span></td></tr>
+          <tr><td class="n">You leave the screen mid-render</td><td class="x">Render continues to the destination you already chose. Nothing raises itself; the list row shows the ring until it lands.</td><td class="x">The destination was captured before you left, which is the whole point of promising the file &#8212; there is nothing left to ask you.</td><td class="l"><span class="lv lv1">1 &#183; in place</span></td></tr>
+          <tr><td class="n">Render fails &#8212; no space for the temp file</td><td class="x">Notice row: <b>Couldn&#8217;t prepare this demo</b> / <b>Try Again</b>. Playback keeps working; the original is untouched.</td><td class="x">Same channel and same shape as playback failure (<a class="dv-oid" href="#16d">16d</a>). Nothing was lost, so it isn&#8217;t an alert.</td><td class="l"><span class="lv lv2">2 &#183; row</span></td></tr>
+          <tr><td class="n">Cancel</td><td class="x">Stops the render, deletes the temp file, sheet closes. Nothing said afterwards.</td><td class="x">You asked for it to stop and it stopped. A confirmation would be noise.</td><td class="l"><span class="lv lv0">0 &#183; silent</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <p class="dv-next">Three things this adds to the register in <a class="dv-oid" href="#14b">14b</a>: <b>S42</b> preparing to share, <b>S43</b> render failed, <b>S44</b> share cancelled mid-render &#8212; plus the copy in <b>S07</b> now covers both rendering-on-save and rendering-for-share. Try next: &#8220;wire 17b into <a href="#1c">1c</a> and <a href="#2c">2c</a>&#8221; &#183; or &#8220;mock the list-row ring (S07)&#8221; &#183; or settle the <a href="#13d">13d</a> question so this is only ever the slow path.</p>
+</section>
+<section class="dv-turn" id="t16">
+  <div class="dv-thd"><a class="dv-tid" href="#t16">16</a><span class="dv-tname">Where a notice lives &#183; the reserved line, for all of them &#183; FINAL</span></div>
+  <p class="dv-intro">Settled on the <a class="dv-oid" href="#15a">15a</a> treatment: <b>one reserved slot above the transport carries every notice</b> &#8212; centred line, optional second line, optional tinted capsule. No cards, no empty states, no second channel. It keeps the screen identical in every state (nothing above it moves, nothing below it jumps) and it&#8217;s the only form that already exists in the layout. The row and full-block forms are gone.</p>
+  <p class="dv-intro" style="margin-bottom:26px">The slot is shared with the transient coaching line, so it needs <b>precedence, not a second channel</b>: <b>mic state &#8594; playback failure &#8594; capacity &#8594; coaching</b>, highest one wins. In practice they barely compete &#8212; coaching only speaks while capture is running, and every mic notice means capture can&#8217;t run. Two behavioural differences hold: a notice appears instantly and persists, where coaching cross-fades; and only a notice may carry an action.</p>
+
+  <div class="dv-opts">
+    <div class="dv-opt" id="16a">
+      <div class="dv-olabel"><a class="dv-oid" href="#16a">16a</a><span><b>The form</b> &#8212; mic denied. Line, then <b>Open Settings</b> as a tinted capsule; Record dims and Enhance goes with it. Same slot, same metrics, whatever the notice is.</span></div>
+      <x-import component-from-global-scope="TakeScreen" from="./ios-frame.jsx ./demo-scene.jsx" mode="monitor" perm="denied" notice-at="coach" hint-size="402px,874px"></x-import>
+    </div>
+    <div class="dv-opt" id="16d">
+      <div class="dv-olabel"><a class="dv-oid" href="#16d">16d</a><span><b>Mid-flow</b> &#8212; playback failure on a damaged file. The take&#8217;s drawing survives (peaks are stored locally), so the screen stays recognisable while the line explains and offers <b>Try Again</b> in the same slot. This is why it never became an empty state.</span></div>
+      <x-import component-from-global-scope="TakeScreen" from="./ios-frame.jsx ./demo-scene.jsx" mode="playback" notice="playfail" notice-at="coach" scrub="twin" dim="fade" fade-span="6" fade-min="0.45" tall="md" dot="off" line-w="4" edge="0" hint-size="402px,874px"></x-import>
+    </div>
+    <div class="dv-opt" id="16e">
+      <div class="dv-olabel"><a class="dv-oid" href="#16e">16e</a><span><b>Dark</b> &#8212; the same slot on near-black. Grey disc on the disabled Record, no accent until the capsule.</span></div>
+      <x-import component-from-global-scope="TakeScreen" from="./ios-frame.jsx ./demo-scene.jsx" mode="monitor" perm="denied" notice-at="coach" dark="true" hint-size="402px,874px"></x-import>
+    </div>
+  </div>
+
+  <div class="dv-opt" id="16f" style="margin-top:34px">
+    <div class="dv-olabel"><a class="dv-oid" href="#16f">16f</a><span><b>What each notice says, and how loud</b> &#8212; everything in-place goes in the one slot; only the alert rung is separate.</span></div>
+    <div class="mxw">
+      <table class="mx">
+        <thead><tr><th>Notice</th><th>Channel</th><th>Form</th><th>Why</th><th>Level</th></tr></thead>
+        <tbody>
+          <tr><td class="n">Mic denied / restricted / unavailable</td><td class="x">Notice</td><td class="x">Reserved line &#8212; <a class="dv-oid" href="#16a">16a</a></td><td class="x">Persistent and total, but the screen still shows what it is. Record dims, so the notice doesn&#8217;t have to shout that the recorder is out of action.</td><td class="l"><span class="lv lv1">1 &#183; in place</span></td></tr>
+          <tr><td class="n">Interruption &#8212; call, Siri, another app</td><td class="x">Neither</td><td class="x">State change only: header reads <b>Paused</b>, right button becomes Resume</td><td class="x">The interruption already interrupted you. A notice explaining the thing you just lived through is noise, and the take is intact.</td><td class="l"><span class="lv lv1">1 &#183; in place</span></td></tr>
+          <tr><td class="n">Recording failure &#8212; write error, storage full, revoked mid-take</td><td class="x">Alert</td><td class="x">System alert &#8212; <a class="dv-oid" href="#15e">15e</a></td><td class="x">Capture stopped against your expectation, and the answer to &#8220;did I lose it?&#8221; can&#8217;t wait for you to notice a row. The alert leads with what was saved.</td><td class="l"><span class="lv lv3">3 &#183; alert</span></td></tr>
+          <tr><td class="n">Playback failure &#8212; file missing or damaged</td><td class="x">Notice</td><td class="x">Reserved line &#8212; <a class="dv-oid" href="#16d">16d</a></td><td class="x">Persistent and actionable, but local to one demo. You asked for this by tapping the row, so no alert; the rest of the library is fine and shouldn&#8217;t be dramatised.</td><td class="l"><span class="lv lv1">1 &#183; in place</span></td></tr>
+          <tr><td class="n">Playback reached the end</td><td class="x">Neither</td><td class="x">None &#8212; marker parks, button returns to Play</td><td class="x">Nothing failed and nothing was decided. <b>S34</b> stays silent.</td><td class="l"><span class="lv lv0">0 &#183; silent</span></td></tr>
+          <tr><td class="n">Low space, non-default input</td><td class="x">Notice</td><td class="x">Reserved line &#8212; <a class="dv-oid" href="#16a">16a</a>, no capsule</td><td class="x">Same slot, no action. <b>S20</b>/<b>S21</b> stop needing their own bespoke chips beside the timer.</td><td class="l"><span class="lv lv1">1 &#183; in place</span></td></tr>
+          <tr><td class="n">Input too quiet / clipping</td><td class="x">Coaching</td><td class="x">Reserved line, three-case enum, cross-fades</td><td class="x">Transient and unactionable, so it sits lowest in precedence: any notice takes the slot from it. Only meaningful while capture runs, when no notice is competing anyway.</td><td class="l"><span class="lv lv1">1 &#183; in place</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <p class="dv-next"><b>On Resume:</b> dimmed, not enabled-and-inert. The transport already has one rule &#8212; Play sits at <code>opacity .35</code> and refuses taps until a take exists &#8212; and Resume is the same promise about the same take. An enabled control that does nothing is a lie the user has to test to disbelieve, and it also breaks the disabled-Record treatment in <a class="dv-oid" href="#16a">16a</a>, where dimming is exactly what tells you the recorder is out of action. One rule: <b>a transport button is dim whenever it cannot act</b>, whether the reason is &#8220;no take yet&#8221; or &#8220;no microphone&#8221;.</p>
+  <p class="dv-next" style="margin-top:10px">What this changes in build: one slot, one resolver &#8212; the Take screen picks the highest-precedence message and renders it, and <code>InlineNotice</code> in <a class="dv-oid" href="#13a">13a</a> is that slot rather than a new component. <b>S18</b>/<b>S19</b>/<b>S22</b> still need mocks, but they now have a form to fill rather than a decision to make.</p>
+</section>
+<section class="dv-turn" id="t15">
+  <div class="dv-thd"><a class="dv-tid" href="#t15">15</a><span class="dv-tname">Microphone permission &#183; the four states that had no mocks</span></div>
+  <p class="dv-intro">&#8220;Every notice the recorder can decide is visible on the screen&#8221; was in the acceptance criteria, but four permission states were only ever written down: <b>denied</b>, <b>restricted</b>, <b>no input device</b>, and <b>access revoked between launches</b>. None had a mock, no disabled-Record treatment existed, and nothing routed to Settings. These are those four, plus the alert that carries the mid-take cases. <b>Placement here is now final</b> &#8212; <a class="dv-oid" href="#t16">16</a> confirms this slot as the one channel for every notice, and sets the precedence rule that lets it share with input coaching. One rule holds across all of them: <b>only the record flow is affected</b> &#8212; the list and playback stay fully usable, so nothing already captured is held hostage to a permission.</p>
+
+  <div class="dv-opts">
+    <div class="dv-opt" id="15a">
+      <div class="dv-olabel"><a class="dv-oid" href="#15a">15a</a><span><b>Denied</b> &#8212; <b>S13</b>. Record is disabled: the ring holds its place, the amber disc goes grey, the control sits at 45% and its label drops to quaternary. The reason takes the reserved coaching slot above the transport &#8212; one line, then <b>Open Settings</b> as a tinted capsule. Enhance dims with it; there is nothing to shape.</span></div>
+      <x-import component-from-global-scope="TakeScreen" from="./ios-frame.jsx ./demo-scene.jsx" mode="monitor" perm="denied" hint-size="402px,874px"></x-import>
+    </div>
+    <div class="dv-opt" id="15b">
+      <div class="dv-olabel"><a class="dv-oid" href="#15b">15b</a><span><b>Restricted</b> &#8212; <b>S41</b>. Screen Time or an MDM profile is holding the mic. Same shape as <a class="dv-oid" href="#15a">15a</a>, but the capsule is gone: the Settings mic switch won&#8217;t move for this user, so offering it would be a dead end. The second line names who to ask instead.</span></div>
+      <x-import component-from-global-scope="TakeScreen" from="./ios-frame.jsx ./demo-scene.jsx" mode="monitor" perm="restricted" hint-size="402px,874px"></x-import>
+    </div>
+    <div class="dv-opt" id="15c">
+      <div class="dv-olabel"><a class="dv-oid" href="#15c">15c</a><span><b>No microphone</b> &#8212; <b>S14</b>. Hardware, not policy. Identical treatment, no Settings route, and the line says what would fix it. Never phrased as permission &#8212; sending someone to a switch that&#8217;s already on is the worst version of this screen.</span></div>
+      <x-import component-from-global-scope="TakeScreen" from="./ios-frame.jsx ./demo-scene.jsx" mode="monitor" perm="nodevice" hint-size="402px,874px"></x-import>
+    </div>
+    <div class="dv-opt" id="15d">
+      <div class="dv-olabel"><a class="dv-oid" href="#15d">15d</a><span><b>Revoked between launches</b> &#8212; access was granted once, then switched off while the app wasn&#8217;t running. The recorder opens straight into <a class="dv-oid" href="#15a">15a</a> and a standard alert explains why, because this one is a genuine surprise: it worked last time. <b>Not Now</b> leaves you on the disabled screen, which still reads correctly on its own.</span></div>
+      <x-import component-from-global-scope="TakeScreen" from="./ios-frame.jsx ./demo-scene.jsx" mode="monitor" perm="revoked" alert="revoked" hint-size="402px,874px"></x-import>
+    </div>
+    <div class="dv-opt" id="15e">
+      <div class="dv-olabel"><a class="dv-oid" href="#15e">15e</a><span><b>Revoked mid-take</b> &#8212; <b>S28</b>. Capture stopped itself and saved. The alert leads with what survived, by name and length, before it mentions Settings; behind it sits the normal Stopped screen with the partial take, ready to play. The same alert carries <b>S27</b> storage-full with two words changed.</span></div>
+      <x-import component-from-global-scope="TakeScreen" from="./ios-frame.jsx ./demo-scene.jsx" mode="stopped" alert="revokedmid" scrub="twin" dim="fade" fade-span="6" fade-min="0.45" tall="md" dot="off" line-w="4" edge="0" hint-size="402px,874px"></x-import>
+    </div>
+    <div class="dv-opt" id="15f">
+      <div class="dv-olabel"><a class="dv-oid" href="#15f">15f</a><span><b>Dark</b> &#8212; the grey disc and the tinted capsule both hold on near-black. Accent stays <b>#FF9F0A</b>; the disc reads against the ring rather than against the background.</span></div>
+      <x-import component-from-global-scope="TakeScreen" from="./ios-frame.jsx ./demo-scene.jsx" mode="monitor" perm="revoked" alert="revoked" dark="true" hint-size="402px,874px"></x-import>
+    </div>
+  </div>
+
+  <div class="dv-opt" id="15g" style="margin-top:34px">
+    <div class="dv-olabel"><a class="dv-oid" href="#15g">15g</a><span><b>Copy and routing</b> &#8212; final strings. Loudness levels follow the scale set in <a class="dv-oid" href="#13c">13c</a>.</span></div>
+    <div class="mxw">
+      <table class="mx">
+        <thead><tr><th>State</th><th>Line on screen</th><th>Route out</th><th>Delivery</th><th>Level</th></tr></thead>
+        <tbody>
+          <tr><td class="n">S13 Denied</td><td class="x"><b>Microphone access is off</b></td><td class="x">Open Settings &#8594; app settings pane</td><td class="x">In place, no alert. You caused this by tapping Don&#8217;t Allow.</td><td class="l"><span class="lv lv1">1 &#183; in place</span></td></tr>
+          <tr><td class="n">S41 Restricted</td><td class="x"><b>Microphone access is restricted</b> / Managed in Screen Time</td><td class="x">None. The switch won&#8217;t move.</td><td class="x">In place, no alert.</td><td class="l"><span class="lv lv1">1 &#183; in place</span></td></tr>
+          <tr><td class="n">S14 No microphone</td><td class="x"><b>No microphone available</b> / Connect a microphone to record</td><td class="x">None. Settings can&#8217;t fix hardware.</td><td class="x">In place, no alert.</td><td class="l"><span class="lv lv1">1 &#183; in place</span></td></tr>
+          <tr><td class="n">Revoked between launches</td><td class="x">Alert: <b>Microphone Access Is Off</b> &#8212; &#8220;Demo Memos can&#8217;t record without the microphone. You can turn access back on in Settings.&#8221;</td><td class="x">Not Now / Open Settings</td><td class="x">Alert on entry, then S13 behind it. It worked last time, so it earns the interrupt.</td><td class="l"><span class="lv lv3">3 &#183; alert</span></td></tr>
+          <tr><td class="n">S28 Revoked mid-take</td><td class="x">Alert: <b>Recording Stopped</b> &#8212; names the length saved and the demo it went into, then Settings.</td><td class="x">Not Now / Open Settings</td><td class="x">Alert on return. Lands on Stopped with the partial take.</td><td class="l"><span class="lv lv3">3 &#183; alert</span></td></tr>
+          <tr><td class="n">S27 Storage full mid-take</td><td class="x">Alert: <b>Storage Full</b> &#8212; same sentence shape, same saved-length promise.</td><td class="x">OK / Manage Storage</td><td class="x">Alert on return. Same component, same button order.</td><td class="l"><span class="lv lv3">3 &#183; alert</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <p class="dv-next">Two rules worth carrying into build: a permission notice never uses red &#8212; it is a state, not an error &#8212; and an alert only appears when capture <b>stopped or never started against your expectation</b>. Everything the user themselves just switched off resolves in place. Still open on the criteria: interruption (<b>S22</b>), no-input and clipping coaching (<b>S18</b>/<b>S19</b>), and playback failure on a missing file (<b>S39</b> unhappy path) &#8212; all four reuse the pieces above, and I can mock them next if you want the criterion fully closed.</p>
+</section>
+<section class="dv-turn" id="t14">
+  <div class="dv-thd"><a class="dv-tid" href="#t14">14</a><span class="dv-tname">State register &#183; every distinct state across the three screens</span></div>
+  <p class="dv-intro">A walk through all three screens, state by state, in the order a user meets them. Each state gets a stable id (<b>S01</b>&#8230;<b>S41</b>) so we can talk about them in review and tick them off as they get mocked. <span class="brf"></span> marks the eleven you listed &#8212; all present, though four of them split into more than one state once you look at where they actually live (see <a class="dv-oid" href="#14c">14c</a>). This is the screen-level companion to <a class="dv-oid" href="#13c">13c</a>, which rates the same conditions by how loud they&#8217;re allowed to be.</p>
+
+  <div class="dv-opt" id="14a">
+    <div class="dv-olabel"><a class="dv-oid" href="#14a">14a</a><span><b>Coverage</b> &#8212; where we stand on mocks.</span></div>
+    <div class="tally">
+      <div class="tally-i"><div class="tally-n">41</div><div class="tally-l">states</div></div>
+      <div class="tally-i"><div class="tally-n">17</div><div class="tally-l">mocked</div></div>
+      <div class="tally-i"><div class="tally-n">21</div><div class="tally-l">to mock</div></div>
+      <div class="tally-i"><div class="tally-n">2</div><div class="tally-l">no new UI</div></div>
+      <div class="tally-i"><div class="tally-n">1</div><div class="tally-l">undecided</div></div>
+    </div>
+  </div>
+
+  <div class="dv-opt" id="14b" style="margin-top:30px">
+    <div class="dv-olabel"><a class="dv-oid" href="#14b">14b</a><span><b>The register</b> &#8212; state, how you get in, what changes on screen, how you get out.</span></div>
+    <div class="legend">
+      <span><span class="brf" style="margin-left:0"></span>&nbsp;&nbsp;named in your list</span>
+      <span><span class="lv mk-done">1a</span> mock exists</span>
+      <span><span class="lv mk-todo">TO MOCK</span> no mock yet</span>
+      <span><span class="lv mk-open">DECIDE</span> needs a call from you</span>
+    </div>
+    <div class="mxw">
+      <table class="mx">
+        <thead><tr><th></th><th>State</th><th>How you get there</th><th>What&#8217;s different on screen</th><th>How you leave</th><th>Mock</th></tr></thead>
+        <tbody>
+          <tr class="sec"><td colspan="6">Launch &amp; the list &#8212; Onboarding, DemosList</td></tr>
+          <tr><td class="id">S01</td><td class="n">First run intro</td><td>First launch only, <code>hasOnboarded</code> unset</td><td class="x">Icon, welcome title, three benefit rows, one Continue. Nothing else reachable.</td><td>Continue &#8594; empty list, never seen again</td><td class="m"><a class="lv mk-done" href="#5a">5a</a></td></tr>
+          <tr><td class="id">S02</td><td class="n">List &#183; empty<span class="brf"></span></td><td>After onboarding, or every demo deleted</td><td class="x">One quiet centred line where the rows would be. New Demo pill stays put. No Edit button.</td><td>New Demo &#8594; S15</td><td class="m"><a class="lv mk-done" href="#4a">4a</a></td></tr>
+          <tr><td class="id">S03</td><td class="n">List &#183; with recordings<span class="brf"></span></td><td>One or more saved demos</td><td class="x">Rows of name &#183; when &#183; length, newest first. Edit appears top-right.</td><td>Tap a row &#8594; S30 &#183; New Demo &#8594; S15</td><td class="m"><a class="lv mk-done" href="#1a">1a</a></td></tr>
+          <tr><td class="id">S04</td><td class="n">List &#183; sectioned</td><td>Enough demos to scroll</td><td class="x">Date headers &#8212; Today / This Week / Earlier &#8212; so scanning survives length.</td><td>Same as S03</td><td class="m"><span class="lv mk-todo">TO MOCK</span></td></tr>
+          <tr><td class="id">S05</td><td class="n">Row swiped</td><td>Swipe a row left</td><td class="x">Row slides to reveal Share and Delete. One row at a time; the rest of the list is untouched.</td><td>Tap an action, swipe back, or scroll</td><td class="m"><a class="lv mk-done" href="#1a">1a</a></td></tr>
+          <tr><td class="id">S06</td><td class="n">Delete confirm</td><td>Delete from the swipe</td><td class="x">Destructive confirm sheet naming the demo. Row still visible behind it.</td><td>Delete &#8594; row animates out &#183; Cancel &#8594; S05</td><td class="m"><span class="lv mk-todo">TO MOCK</span></td></tr>
+          <tr><td class="id">S07</td><td class="n">Row &#183; processing</td><td>Take saved, Enhance still rendering</td><td class="x">Small activity marker where the length goes. Row is present and tappable throughout.</td><td>Render finishes &#8594; S03. Only exists if Enhance bakes in on save (<a href="#13d">13d</a>)</td><td class="m"><span class="lv mk-todo">TO MOCK</span></td></tr>
+          <tr><td class="id">S08</td><td class="n">Row &#183; not downloaded</td><td>File offloaded to iCloud or evicted</td><td class="x">Cloud marker replaces the length. Everything else reads normally.</td><td>Tap &#8594; S39</td><td class="m"><span class="lv mk-todo">TO MOCK</span></td></tr>
+          <tr><td class="id">S09</td><td class="n">Row &#183; recovered</td><td>First launch after a crash mid-take</td><td class="x">The partial take is simply in the list at its true length, tagged <b>Recovered</b> for this session only. No dialog, no explanation.</td><td>Tag clears next launch</td><td class="m"><span class="lv mk-todo">TO MOCK</span></td></tr>
+          <tr><td class="id">S10</td><td class="n">List &#183; editing</td><td>Tap Edit</td><td class="x">Rows gain a delete affordance; Edit becomes Done. New Demo stays available.</td><td>Done &#8594; S03</td><td class="m"><span class="lv mk-todo">TO MOCK</span></td></tr>
+          <tr><td class="id">S11</td><td class="n">New Demo blocked</td><td>No mic, or no room to record</td><td class="x">Pill dims and one line says why. If it&#8217;s storage, the alert lands before the recorder opens &#8212; you never see a recorder you can&#8217;t use.</td><td>Fix the cause &#8594; S03</td><td class="m"><span class="lv mk-todo">TO MOCK</span></td></tr>
+
+          <tr class="sec"><td colspan="6">Getting permission &#8212; TakeScreen</td></tr>
+          <tr><td class="id">S12</td><td class="n">Requesting permission<span class="brf"></span></td><td>First ever tap on Record</td><td class="x">iOS prompt over the recorder. The count-in does not begin, so no time is lost while you decide.</td><td>Allow &#8594; S16 &#183; Don&#8217;t Allow &#8594; S13</td><td class="m"><span class="lv mk-todo">TO MOCK</span></td></tr>
+          <tr><td class="id">S13</td><td class="n">Permission denied<span class="brf"></span></td><td>Don&#8217;t Allow, or switched off in Settings later</td><td class="x">Record button disabled. One line: <b>Microphone access is off</b> with <b>Open Settings</b>. The list and playback stay fully usable &#8212; nothing is held hostage.</td><td>Grant in Settings &#8594; S15</td><td class="m"><a class="lv mk-done" href="#15a">15a</a></td></tr>
+          <tr><td class="id">S14</td><td class="n">Mic unavailable<span class="brf"></span></td><td>No usable input device</td><td class="x">Same shape as S13, different line: <b>No microphone available</b>. No Settings link, because Settings can&#8217;t fix it.</td><td>Device appears &#8594; S15</td><td class="m"><a class="lv mk-done" href="#15c">15c</a></td></tr>
+          <tr><td class="id">S41</td><td class="n">Permission restricted</td><td>Screen Time or an MDM profile blocks the mic</td><td class="x">Same shape as S13, no Settings route &#8212; the switch won&#8217;t move for this user. Second line: <b>Managed in Screen Time</b>.</td><td>Restriction lifted &#8594; S15</td><td class="m"><a class="lv mk-done" href="#15b">15b</a></td></tr>
+
+          <tr class="sec"><td colspan="6">Recording &#8212; TakeScreen</td></tr>
+          <tr><td class="id">S15</td><td class="n">Ready</td><td>Recorder opened with permission granted</td><td class="x">Flat armed waveform, 00:00, Enhance ready to set. Play is dim, right button is Record. Header: Cancel / &#8212;.</td><td>Record &#8594; S16 &#183; Cancel &#8594; S03</td><td class="m"><a class="lv mk-done" href="#1b">1b</a></td></tr>
+          <tr><td class="id">S16</td><td class="n">Count-in</td><td>Record tapped</td><td class="x">The orange disc becomes the numeral, 4&#183;3&#183;2&#183;1 inside the ring, with soft ticks. Timer still reads 00:00.</td><td>Last beat &#8594; S17 &#183; tap again or Cancel aborts to S15</td><td class="m"><a class="lv mk-done" href="#8a">8a</a></td></tr>
+          <tr><td class="id">S17</td><td class="n">Recording<span class="brf"></span></td><td>Count-in completes</td><td class="x">Waveform runs live at the right edge, timer counts up, right button is Stop. Play stays disabled. Header keeps Cancel only &#8212; there is no Done until you stop.</td><td>Stop &#8594; S24</td><td class="m"><a class="lv mk-done" href="#1b">1b</a></td></tr>
+          <tr><td class="id">S18</td><td class="n">Recording &#183; no input</td><td>Flat levels for more than ~3s</td><td class="x">Coaching line under the waveform: <b>We&#8217;re not hearing anything</b>. Bars stay honestly flat rather than faking life.</td><td>Level returns &#8594; S17</td><td class="m"><span class="lv mk-todo">TO MOCK</span></td></tr>
+          <tr><td class="id">S19</td><td class="n">Recording &#183; clipping</td><td>Peaks at or above full scale</td><td class="x">Peaking bars turn red as they pass; one line: <b>Too loud &#8212; move back a little</b>.</td><td>Levels drop &#8594; S17</td><td class="m"><span class="lv mk-todo">TO MOCK</span></td></tr>
+          <tr><td class="id">S20</td><td class="n">Recording &#183; low space<span class="brf"></span></td><td>Under ~5 min of headroom, at start or crossed mid-take</td><td class="x">Amber <b>5 min left</b> beside the timer. Recording is otherwise untouched.</td><td>Runs out &#8594; S27</td><td class="m"><span class="lv mk-todo">TO MOCK</span></td></tr>
+          <tr><td class="id">S21</td><td class="n">Recording &#183; other input</td><td>AirPods or another non-default input is active</td><td class="x">A chip beside the timer names the input. Not a warning &#8212; capture is fine.</td><td>Route changes back &#8594; S17</td><td class="m"><span class="lv mk-todo">TO MOCK</span></td></tr>
+          <tr><td class="id">S22</td><td class="n">Interrupted &#8212; paused<span class="brf"></span></td><td>Call, Siri, or another app claims the mic</td><td class="x">Capture pauses at that instant. Header reads <b>Paused</b>, right button becomes <b>Resume</b>. Nothing is lost and nothing is alerted &#8212; the interruption already interrupted you.</td><td>Resume &#8594; S17 &#183; Stop &#8594; S24</td><td class="m"><span class="lv mk-todo">TO MOCK</span></td></tr>
+          <tr><td class="id">S23</td><td class="n">Recording in background</td><td>App backgrounded or device locked</td><td class="x">Capture continues. iOS red indicator plus a Live Activity carrying elapsed time and Stop.</td><td>Return &#8594; S17 &#183; Stop from the Live Activity &#8594; saved</td><td class="m"><span class="lv mk-todo">TO MOCK</span></td></tr>
+          <tr><td class="id">S24</td><td class="n">Stopped</td><td>Stop tapped, take longer than 1s</td><td class="x">Waveform freezes as the whole take. Play lights up, right button becomes Resume, header gains <b>Done</b> and Share.</td><td>Done &#8594; S03 &#183; Play &#8594; S31 &#183; Resume &#8594; S17 &#183; Cancel &#8594; S29</td><td class="m"><a class="lv mk-done" href="#3a">3a</a></td></tr>
+          <tr><td class="id">S25</td><td class="n">Take discarded</td><td>Stop within a second of starting</td><td class="x">Nothing. Screen returns to Ready, no row is written, no message shown.</td><td>&#8594; S15</td><td class="m"><span class="lv mk-none">no UI</span></td></tr>
+          <tr><td class="id">S26</td><td class="n">Length cap reached</td><td>Timer hits the maximum, if we set one</td><td class="x">Stops and saves exactly as a manual Stop would, plus one line: <b>Maximum length reached</b>.</td><td>&#8594; S24. Depends on the cap decision in <a href="#13d">13d</a></td><td class="m"><span class="lv mk-todo">TO MOCK</span></td></tr>
+          <tr><td class="id">S27</td><td class="n">Disk full mid-take<span class="brf"></span></td><td>A write fails</td><td class="x">Recording stops itself and the partial take is saved. Alert states the length that survived: <b>Storage full &#8212; your demo up to 4:12 was saved</b> &#183; Manage Storage / OK.</td><td>OK &#8594; S24 with the partial take</td><td class="m"><span class="lv mk-todo">TO MOCK</span></td></tr>
+          <tr><td class="id">S28</td><td class="n">Permission revoked mid-take</td><td>Access pulled while backgrounded</td><td class="x">Stops and saves. Alert on return says what was kept, with Open Settings.</td><td>OK &#8594; S13</td><td class="m"><a class="lv mk-done" href="#15e">15e</a></td></tr>
+          <tr><td class="id">S29</td><td class="n">Cancel with a take</td><td>Cancel tapped in S24</td><td class="x">Undecided: silently discard, or confirm first. A recording someone just made is worth a confirm; an accidental one isn&#8217;t worth a tap.</td><td>&#8594; S03 either way</td><td class="m"><span class="lv mk-open">DECIDE</span></td></tr>
+
+          <tr class="sec"><td colspan="6">Playback &#8212; TakeScreen</td></tr>
+          <tr><td class="id">S30</td><td class="n">Loaded, at start</td><td>Tap a row in the list</td><td class="x">Header is &#8249;&#160;Demos / Share. Whole take drawn with the marker at the beginning; Enhance shows the saved setting.</td><td>Play &#8594; S31 &#183; drag &#8594; S33 &#183; tap title &#8594; S35</td><td class="m"><a class="lv mk-done" href="#1c">1c</a></td></tr>
+          <tr><td class="id">S31</td><td class="n">Playing<span class="brf"></span></td><td>Play tapped</td><td class="x">Waveform scrolls under the fixed orange marker, played side warm. Timer shows position; left button becomes Pause.</td><td>Pause &#8594; S32 &#183; reaches end &#8594; S34</td><td class="m"><a class="lv mk-done" href="#1c">1c</a></td></tr>
+          <tr><td class="id">S32</td><td class="n">Paused<span class="brf"></span></td><td>Pause tapped</td><td class="x">Motion stops, position holds, button returns to Play. Distinct from S22: nothing is being captured here, so this is a user choice, not a rescue.</td><td>Play &#8594; S31</td><td class="m"><a class="lv mk-done" href="#1c">1c</a></td></tr>
+          <tr><td class="id">S33</td><td class="n">Scrubbing</td><td>Drag the waveform</td><td class="x">The take follows your finger under the marker; timer tracks. Audio picks up where you release if it was playing.</td><td>Release &#8594; S31 or S32</td><td class="m"><a class="lv mk-done" href="#12a">12a</a></td></tr>
+          <tr><td class="id">S34</td><td class="n">At end</td><td>Position reaches the last bar</td><td class="x">Marker parks at the end, button returns to Play. Next Play restarts from zero rather than doing nothing.</td><td>Play &#8594; S31 from 00:00</td><td class="m"><span class="lv mk-todo">TO MOCK</span></td></tr>
+          <tr><td class="id">S35</td><td class="n">Renaming<span class="brf"></span></td><td>Tap the title on playback</td><td class="x">Title becomes an editable field, text selected, keyboard up. Everything below carries on &#8212; you can rename while it plays.</td><td>Return or tap away commits &#8594; S30</td><td class="m"><span class="lv mk-todo">TO MOCK</span></td></tr>
+          <tr><td class="id">S36</td><td class="n">Renamed to empty</td><td>Field cleared, then blurred</td><td class="x">Falls back to the auto name (<b>Demo 12</b>). No validation error, because there&#8217;s no mistake to report.</td><td>&#8594; S30</td><td class="m"><span class="lv mk-todo">TO MOCK</span></td></tr>
+          <tr><td class="id">S37</td><td class="n">Long name</td><td>Name outruns the space</td><td class="x">Tail-truncated in the list; wraps to two lines maximum on playback, and the waveform gives up the height.</td><td>&#8212;</td><td class="m"><span class="lv mk-todo">TO MOCK</span></td></tr>
+          <tr><td class="id">S38</td><td class="n">Headphones unplugged</td><td>Route change during playback</td><td class="x">Playback pauses per iOS convention. Visually identical to S32, no message.</td><td>Play &#8594; S31</td><td class="m"><span class="lv mk-none">= S32</span></td></tr>
+          <tr><td class="id">S39</td><td class="n">Downloading</td><td>Tap a not-downloaded row (S08)</td><td class="x">Inline progress in the row, then it opens and plays. No separate screen, no spinner takeover.</td><td>Done &#8594; S30 and plays</td><td class="m"><span class="lv mk-todo">TO MOCK</span></td></tr>
+          <tr><td class="id">S40</td><td class="n">Share sheet</td><td>Share on playback, or Share from a row swipe</td><td class="x">Native share sheet over whatever you were on. Playback keeps its position behind it.</td><td>Dismiss &#8594; back where you were</td><td class="m"><a class="lv mk-done" href="#1a">1a</a></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="dv-next" style="margin-top:14px">Appearance and accessibility settings multiply this list rather than adding to it &#8212; dark mode (<a href="#2a">2a</a>/<a href="#2b">2b</a>/<a href="#2c">2c</a>), Dynamic Type to XXL, Reduce Motion, VoiceOver and Low Power Mode each need to hold across all forty. Their rules are set in <a href="#13c">13c</a>.</p>
+  </div>
+
+  <div class="dv-opt" id="14c" style="margin-top:34px">
+    <div class="dv-olabel"><a class="dv-oid" href="#14c">14c</a><span><b>What the walk-through turned up</b> &#8212; four places where one word in your list is really two states.</span></div>
+    <ul class="oq">
+      <li><b>&#8220;Idle&#8221; is four states, not one.</b> The list idles empty (S02) or populated (S03); the take screen idles armed-but-never-recorded (S15) or loaded-with-a-take-at-zero (S30). They look nothing alike and only S15 can be cancelled away to nothing.</li>
+      <li><b>&#8220;Paused&#8221; is two.</b> Recording paused by an interruption (S22) must say so and offer Resume, because the user didn&#8217;t choose it. Playback paused by tapping Pause (S32) should say nothing at all. Same word, opposite volume.</li>
+      <li><b>&#8220;Playing&#8221; may be two.</b> <code>DemoRow</code> carries a <code>playing</code> variant, which implies rows can play in place without opening playback. If that&#8217;s wanted, it needs its own state and its own transport; if not, drop the variant.</li>
+      <li><b>&#8220;Disk full&#8221; is three.</b> Approaching the limit (S20) is a status, hitting it mid-take (S27) is an alert about what was saved, and having no room before you start (S11) should never open a recorder at all.</li>
+      <li><b>One state is still a decision, not a design</b> &#8212; S29, cancelling a take you just recorded.</li>
+    </ul>
+  </div>
+
+  <p class="dv-next">Try next: &#8220;mock the permission trio S12&#8211;S14&#8221; &#183; or &#8220;mock the recording edges S18&#8211;S22 as one sheet of phones&#8221; &#183; or &#8220;S29: add a discard confirm&#8221;</p>
+</section>
+<section class="dv-turn" id="t13">
+  <div class="dv-thd"><a class="dv-tid" href="#t13">13</a><span class="dv-tname">Component inventory &amp; the states we still owe</span></div>
+  <p class="dv-intro">What the app is actually made of, and every state each piece has to survive. Three screens (<a class="dv-oid" href="#1a">1a</a>/<a class="dv-oid" href="#1b">1b</a>/<a class="dv-oid" href="#1c">1c</a>) plus a modal layer — small enough that almost everything is shared. Items marked <b>TO BUILD</b> have no mock yet. The state matrix below rates each condition by <b>how loud it should be</b>: the house rule is that nothing interrupts recording unless recording has already stopped.</p>
+
+  <div class="dv-opt" id="13a">
+    <div class="dv-olabel"><a class="dv-oid" href="#13a">13a</a><span><b>Component inventory</b> — five layers, with the variants and states each component carries.</span></div>
+    <div class="cb-grid">
+      <div class="cb-card">
+        <p class="cb-hd2">1 · Screens</p>
+        <div class="cb-comp first">
+          <div><span class="cb-name">DemosList</span></div>
+          <p class="cb-role">Home. The only navigation root; owns the demo collection and the New Demo action.</p>
+          <div class="cb-chips"><span class="cb-chip">populated</span><span class="cb-chip">empty</span><span class="cb-chip">sectioned</span><span class="cb-chip">editing</span></div>
+        </div>
+        <div class="cb-comp">
+          <div><span class="cb-name">TakeScreen</span></div>
+          <p class="cb-role">One screen for record <em>and</em> playback. Everything below the header is constant; only the header and the right transport button change (see <a class="dv-oid" href="#1d">1d</a>).</p>
+          <div class="cb-chips"><span class="cb-chip">ready</span><span class="cb-chip">counting-in</span><span class="cb-chip">recording</span><span class="cb-chip">stopped</span><span class="cb-chip">playing</span><span class="cb-chip">paused</span><span class="cb-chip">scrubbing</span><span class="cb-chip">blocked</span></div>
+        </div>
+        <div class="cb-comp">
+          <div><span class="cb-name">Onboarding</span></div>
+          <p class="cb-role">Shown once, gated by <code>hasOnboarded</code>. No state beyond appearance.</p>
+          <div class="cb-chips"><span class="cb-chip">light</span><span class="cb-chip">dark</span></div>
+        </div>
+      </div>
+
+      <div class="cb-card">
+        <p class="cb-hd2">2 · Structure</p>
+        <div class="cb-comp first">
+          <div><span class="cb-name">NavHeader</span></div>
+          <p class="cb-role">Leading action · title · trailing action. Four configurations, one per TakeScreen state, plus the list's own.</p>
+          <div class="cb-chips"><span class="cb-chip">Cancel / —</span><span class="cb-chip">Cancel / Done</span><span class="cb-chip">‹ Demos / Share</span><span class="cb-chip">Demos / Edit</span></div>
+        </div>
+        <div class="cb-comp">
+          <div><span class="cb-name">DemoRow</span></div>
+          <p class="cb-role">Name, when, length. Wrapped in <code>SwipeRow</code> for Share / Delete.</p>
+          <div class="cb-chips"><span class="cb-chip">default</span><span class="cb-chip">swiped</span><span class="cb-chip">playing</span><span class="cb-chip">processing</span><span class="cb-chip">not-downloaded</span><span class="cb-chip">recovered</span></div>
+        </div>
+        <div class="cb-comp">
+          <div><span class="cb-name">EmptyState</span></div>
+          <p class="cb-role">One centred line above the New Demo pill (<a class="dv-oid" href="#4a">4a</a>).</p>
+        </div>
+        <div class="cb-comp">
+          <div><span class="cb-name">TitleField</span><span class="cb-tag build">TO BUILD</span></div>
+          <p class="cb-role">Inline rename on the playback title. Empty on blur reverts to the auto name.</p>
+          <div class="cb-chips"><span class="cb-chip">idle</span><span class="cb-chip">editing</span><span class="cb-chip">truncated</span></div>
+        </div>
+      </div>
+
+      <div class="cb-card">
+        <p class="cb-hd2">3 · Controls</p>
+        <div class="cb-comp first">
+          <div><span class="cb-name">TransportPair</span></div>
+          <p class="cb-role">Play (left) + Record/Stop/Resume (right). Same size, centred pair, 44pt minimum — the right button is the only shape that changes.</p>
+          <div class="cb-chips"><span class="cb-chip">record</span><span class="cb-chip">count 4·3·2·1</span><span class="cb-chip">stop</span><span class="cb-chip">resume</span><span class="cb-chip">play</span><span class="cb-chip">pause</span><span class="cb-chip">disabled</span></div>
+        </div>
+        <div class="cb-comp">
+          <div><span class="cb-name">EnhanceSlider</span></div>
+          <p class="cb-role">The one control you learn. Scrolling tick scale under a fixed marker; 0–1 maps to a tone name (Dry → Room → …). Present on record and playback alike.</p>
+          <div class="cb-chips"><span class="cb-chip">idle</span><span class="cb-chip">dragging</span><span class="cb-chip">live-applied</span></div>
+        </div>
+        <div class="cb-comp">
+          <div><span class="cb-name">Timer</span></div>
+          <p class="cb-role">Elapsed / position. Also the host for the capacity warning ("5 min left").</p>
+          <div class="cb-chips"><span class="cb-chip">counting</span><span class="cb-chip">position</span><span class="cb-chip">warning</span></div>
+        </div>
+        <div class="cb-comp">
+          <div><span class="cb-name">NewDemoPill</span></div>
+          <p class="cb-role">Single primary action on the list. Disabled when the mic is unavailable.</p>
+        </div>
+      </div>
+
+      <div class="cb-card">
+        <p class="cb-hd2">4 · Waveform</p>
+        <div class="cb-comp first">
+          <div><span class="cb-name">LiveWave</span></div>
+          <p class="cb-role">Recording surface — one GPU layer, live edge on the right, warm bloom from Enhance (<a class="dv-oid" href="#6a">6a</a>).</p>
+          <div class="cb-chips"><span class="cb-chip">armed</span><span class="cb-chip">recording</span><span class="cb-chip">clipping</span><span class="cb-chip">silent</span><span class="cb-chip">reduced-motion</span></div>
+        </div>
+        <div class="cb-comp">
+          <div><span class="cb-name">ScrubWaveform</span></div>
+          <p class="cb-role">Playback surface — centre-locked playhead, waveform scrolls under a fixed orange marker (<a class="dv-oid" href="#12a">12a</a>).</p>
+          <div class="cb-chips"><span class="cb-chip">idle</span><span class="cb-chip">playing</span><span class="cb-chip">dragging</span><span class="cb-chip">at-end</span></div>
+        </div>
+        <div class="cb-comp">
+          <div><span class="cb-name">InputPill</span><span class="cb-tag build">TO BUILD</span></div>
+          <p class="cb-role">Names the input when it isn't the built-in mic ("AirPods Pro"). Reuses the <code>MonitorPill</code> shape.</p>
+        </div>
+      </div>
+
+      <div class="cb-card">
+        <p class="cb-hd2">5 · Overlays &amp; feedback</p>
+        <div class="cb-comp first">
+          <div><span class="cb-name">ShareSheet</span></div>
+          <p class="cb-role">Native share sheet. Reached from a row swipe or the playback share icon.</p>
+        </div>
+        <div class="cb-comp">
+          <div><span class="cb-name">ConfirmSheet</span></div>
+          <p class="cb-role">Destructive confirm for Delete.</p>
+        </div>
+        <div class="cb-comp">
+          <div><span class="cb-name">InfoSheet</span></div>
+          <p class="cb-role">Grabber · symbol · one line · callout · one OK. Currently the monitoring explainer (<a class="dv-oid" href="#9a">9a</a>); the pattern generalises.</p>
+        </div>
+        <div class="cb-comp">
+          <div><span class="cb-name">InlineNotice</span><span class="cb-tag build">TO BUILD</span></div>
+          <p class="cb-role">One quiet line in the layout's existing hint slot — the workhorse for every recoverable problem. Optional trailing action (Open Settings).</p>
+          <div class="cb-chips"><span class="cb-chip">info</span><span class="cb-chip">warning</span><span class="cb-chip">with-action</span></div>
+        </div>
+        <div class="cb-comp">
+          <div><span class="cb-name">Alert</span><span class="cb-tag build">TO BUILD</span></div>
+          <p class="cb-role">System alert. Only for things that already stopped the recording or that block it outright.</p>
+        </div>
+        <div class="cb-comp">
+          <div><span class="cb-name">LiveActivity</span><span class="cb-tag build">TO BUILD</span></div>
+          <p class="cb-role">Lock-screen / Dynamic Island presence while recording in the background: elapsed time + Stop.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="dv-opt" id="13b" style="margin-top:38px">
+    <div class="dv-olabel"><a class="dv-oid" href="#13b">13b</a><span><b>Loudness ladder</b> — how much noise a problem is allowed to make. Always reach for the leftmost rung that still tells the truth.</span></div>
+    <div class="ld">
+      <div class="ld-step" style="border-top-color:#c9c5bc"><div class="ld-n lv lv0" style="padding:0;background:none">0 · SILENT</div><div class="ld-t">Just handle it</div><div class="ld-d">Recover and say nothing. Sub-second takes, crash recovery, headphones pulled during playback.</div></div>
+      <div class="ld-step" style="border-top-color:#e8c9a0"><div class="ld-n lv lv1" style="padding:0;background:none">1 · INLINE</div><div class="ld-t">One line in place</div><div class="ld-d">Text swaps into the existing hint slot. No new chrome, nothing blocked. The default.</div></div>
+      <div class="ld-step" style="border-top-color:#ff9f45"><div class="ld-n lv lv2" style="padding:0;background:none">2 · STATUS</div><div class="ld-t">Pill or chip</div><div class="ld-d">A persistent condition worth glancing at: capacity left, non-default input, paused by a call.</div></div>
+      <div class="ld-step" style="border-top-color:#ff7a00"><div class="ld-n lv lv3" style="padding:0;background:none">3 · SHEET</div><div class="ld-t">Explain on demand</div><div class="ld-d">Only when the user taps to ask why. Dismissible, never automatic.</div></div>
+      <div class="ld-step" style="border-top-color:#c9463a"><div class="ld-n lv lv4" style="padding:0;background:none">4 · ALERT</div><div class="ld-t">Blocking decision</div><div class="ld-d">Recording already stopped, or can't start. Always states what was saved. Rare by design.</div></div>
+    </div>
+  </div>
+
+  <div class="dv-opt" id="13c" style="margin-top:38px">
+    <div class="dv-olabel"><a class="dv-oid" href="#13c">13c</a><span><b>State matrix</b> — every condition, its trigger, the treatment, and which component owns it.</span></div>
+    <div class="mxw">
+      <table class="mx">
+        <thead><tr><th>State</th><th>Trigger</th><th>What the user sees</th><th>Loudness</th><th>Owner</th></tr></thead>
+        <tbody>
+          <tr class="sec"><td colspan="5">Microphone &amp; permission</td></tr>
+          <tr><td class="n">Not yet asked</td><td>First tap on Record</td><td>iOS permission prompt. The count-in doesn't begin until it's granted, so no time is lost.</td><td class="l"><span class="lv lv0">0 · silent</span></td><td class="c">TransportPair</td></tr>
+          <tr><td class="n">Mic denied</td><td>"Don't Allow", or switched off in Settings</td><td>Record button disabled; one line reads <b>Microphone access is off</b> with <b>Open Settings</b>. The list and playback stay fully usable.</td><td class="l"><span class="lv lv1">1 · inline</span></td><td class="c">TakeScreen · InlineNotice</td></tr>
+          <tr><td class="n">Revoked mid-take</td><td>Permission pulled while backgrounded</td><td>Recording stops; everything captured is saved and named. Alert on return: what was saved, and Open Settings.</td><td class="l"><span class="lv lv4">4 · alert</span></td><td class="c">Alert</td></tr>
+          <tr><td class="n">No input device</td><td>No usable microphone (hardware fault)</td><td>Record disabled, one line: <b>No microphone available</b>.</td><td class="l"><span class="lv lv1">1 · inline</span></td><td class="c">InlineNotice</td></tr>
+
+          <tr class="sec"><td colspan="5">Storage &amp; capacity</td></tr>
+          <tr><td class="n">Low space</td><td>Under ~5 min of headroom, at start or crossing mid-take</td><td>Timer gains an amber <b>5 min left</b>. Recording is untouched.</td><td class="l"><span class="lv lv2">2 · status</span></td><td class="c">Timer</td></tr>
+          <tr><td class="n">Out of space mid-take</td><td>Write fails</td><td>Recording stops immediately and the partial take is saved. Alert: <b>Storage full — your demo up to 4:12 was saved</b> · Manage Storage / OK.</td><td class="l"><span class="lv lv4">4 · alert</span></td><td class="c">Alert</td></tr>
+          <tr><td class="n">Out of space at start</td><td>New Demo tapped with no room</td><td>Alert before the recorder opens, so you never see a recorder you can't use. List unchanged behind it.</td><td class="l"><span class="lv lv4">4 · alert</span></td><td class="c">Alert · DemosList</td></tr>
+          <tr><td class="n">File not downloaded</td><td>Offloaded to iCloud / evicted by the system</td><td>Row shows a cloud marker instead of a length. Tapping downloads it with inline progress, then plays.</td><td class="l"><span class="lv lv1">1 · inline</span></td><td class="c">DemoRow</td></tr>
+
+          <tr class="sec"><td colspan="5">Interruptions &amp; audio route</td></tr>
+          <tr><td class="n">Call or Siri</td><td>Audio-session interruption</td><td>Recording pauses at that instant, header reads <b>Paused</b>, right button becomes <b>Resume</b>. Nothing lost, no alert.</td><td class="l"><span class="lv lv2">2 · status</span></td><td class="c">TakeScreen · NavHeader</td></tr>
+          <tr><td class="n">Another app takes the mic</td><td>Background app claims input</td><td>Identical to a call — pause and offer Resume.</td><td class="l"><span class="lv lv2">2 · status</span></td><td class="c">TakeScreen</td></tr>
+          <tr><td class="n">Headphones unplugged</td><td>Route change during playback</td><td>Playback pauses, per iOS convention. No message.</td><td class="l"><span class="lv lv0">0 · silent</span></td><td class="c">TransportPair</td></tr>
+          <tr><td class="n">Bluetooth input</td><td>AirPods are the active input</td><td>A chip beside the timer names the input. No warning — capture is fine; only live monitoring isn't (<a class="dv-oid" href="#7a">7a</a>).</td><td class="l"><span class="lv lv2">2 · status</span></td><td class="c">InputPill</td></tr>
+
+          <tr class="sec"><td colspan="5">Recording edges</td></tr>
+          <tr><td class="n">Nothing coming in</td><td>Flat levels for &gt;3s</td><td>Coaching line under the waveform: <b>We're not hearing anything</b>. Bars stay flat rather than faking activity.</td><td class="l"><span class="lv lv1">1 · inline</span></td><td class="c">LiveWave · InlineNotice</td></tr>
+          <tr><td class="n">Clipping</td><td>Peaks at or above full scale</td><td>Peaking bars turn red; one line: <b>Too loud — move back a little</b>.</td><td class="l"><span class="lv lv1">1 · inline</span></td><td class="c">LiveWave</td></tr>
+          <tr><td class="n">Take under 1 second</td><td>Stop tapped immediately</td><td>Discarded; screen returns to Ready. No row, no message.</td><td class="l"><span class="lv lv0">0 · silent</span></td><td class="c">TakeScreen</td></tr>
+          <tr><td class="n">Length cap reached</td><td>Timer hits the maximum</td><td>Recording stops and saves, exactly as if you'd tapped Stop, plus one line: <b>Maximum length reached</b>.</td><td class="l"><span class="lv lv1">1 · inline</span></td><td class="c">InlineNotice</td></tr>
+          <tr><td class="n">Recording in background</td><td>App backgrounded or device locked</td><td>Capture continues. iOS red indicator, plus a Live Activity with elapsed time and Stop.</td><td class="l"><span class="lv lv2">2 · status</span></td><td class="c">LiveActivity</td></tr>
+          <tr><td class="n">App killed mid-take</td><td>Crash or force quit</td><td>Next launch recovers the partial take into the list at its true length, tagged <b>Recovered</b> for that session.</td><td class="l"><span class="lv lv0">0 · silent</span></td><td class="c">DemosList · DemoRow</td></tr>
+          <tr><td class="n">Enhance still rendering</td><td>Take saved, processing not finished</td><td>Row is present and tappable with a small activity marker where the length goes.</td><td class="l"><span class="lv lv1">1 · inline</span></td><td class="c">DemoRow</td></tr>
+
+          <tr class="sec"><td colspan="5">Content &amp; data</td></tr>
+          <tr><td class="n">Empty list</td><td>First launch, or all demos deleted</td><td>Quiet centred guidance with New Demo still in place (<a class="dv-oid" href="#4a">4a</a>).</td><td class="l"><span class="lv lv0">0 · silent</span></td><td class="c">EmptyState</td></tr>
+          <tr><td class="n">Renamed to empty</td><td>Title cleared and blurred</td><td>Falls back to the auto name (<b>Demo 12</b>). No validation error.</td><td class="l"><span class="lv lv0">0 · silent</span></td><td class="c">TitleField</td></tr>
+          <tr><td class="n">Long name</td><td>Name exceeds the row</td><td>Tail-truncated in the list; wraps to two lines maximum on playback.</td><td class="l"><span class="lv lv0">0 · silent</span></td><td class="c">DemoRow · TitleField</td></tr>
+          <tr><td class="n">Long list</td><td>Enough demos to scroll</td><td>Date sections — Today / This Week / Earlier — so scanning stays possible.</td><td class="l"><span class="lv lv0">0 · silent</span></td><td class="c">DemosList</td></tr>
+          <tr><td class="n">Delete</td><td>Swipe left → Delete</td><td>Destructive confirm, then the row animates out. No undo in the MVP (see open questions).</td><td class="l"><span class="lv lv3">3 · sheet</span></td><td class="c">ConfirmSheet</td></tr>
+
+          <tr class="sec"><td colspan="5">Accessibility &amp; system</td></tr>
+          <tr><td class="n">Dark mode</td><td>System appearance</td><td>Designed and signed off (<a class="dv-oid" href="#t2">2</a>). Orange stays the only accent.</td><td class="l"><span class="lv lv0">0 · silent</span></td><td class="c">all</td></tr>
+          <tr><td class="n">Large text</td><td>Dynamic Type up to XXL</td><td>Rows grow to two lines; the waveform gives up height before any text shrinks; transport stays 44pt.</td><td class="l"><span class="lv lv0">0 · silent</span></td><td class="c">DemoRow · TakeScreen</td></tr>
+          <tr><td class="n">Reduce Motion</td><td>System setting</td><td>Waveform holds a static level read instead of animating; sheets cross-fade rather than slide.</td><td class="l"><span class="lv lv0">0 · silent</span></td><td class="c">LiveWave · sheets</td></tr>
+          <tr><td class="n">VoiceOver</td><td>Screen reader active</td><td>The waveform is one element with a value, not 46 bars. Transport announces state and elapsed time.</td><td class="l"><span class="lv lv0">0 · silent</span></td><td class="c">all</td></tr>
+          <tr><td class="n">Low Power Mode</td><td>System setting</td><td>Waveform frame rate drops. Capture quality is never affected.</td><td class="l"><span class="lv lv0">0 · silent</span></td><td class="c">LiveWave</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="dv-opt" id="13d" style="margin-top:38px">
+    <div class="dv-olabel"><a class="dv-oid" href="#13d">13d</a><span><b>Open questions</b> — decisions I'd want from you before mocking the states above.</span></div>
+    <ul class="oq">
+      <li><b>Maximum take length.</b> Is there one? A cap makes the failure predictable; no cap means storage is the only limit.</li>
+      <li><b>Undo delete.</b> A Recently Deleted tier (Voice Memos has one) or a permanent delete behind the confirm?</li>
+      <li><b>Enhance after the fact.</b> Is the saved file the raw capture with Enhance as a live setting, or is Enhance baked in on save? This decides whether the <b>processing</b> row state exists at all.</li>
+      <li><b>Does anything need to survive a reinstall?</b> If demos are meant to be durable, iCloud sync adds its own state family (syncing, conflict, quota) that isn't in this matrix.</li>
+    </ul>
+  </div>
+
+  <p class="dv-next">Try next: "mock the mic-denied and storage-full screens" · or "design the Live Activity" · or "add InlineNotice to 1b so I can see all four variants"</p>
+</section>
 <div class="dv-group" id="grp-core"><span class="dv-gnum">A</span><span class="dv-gname">Core product · the shipping flow</span></div>
 <section class="dv-turn" id="t1">
   <div class="dv-thd"><a class="dv-tid" href="#t1">1</a><span class="dv-tname">The full flow · light mode</span></div>

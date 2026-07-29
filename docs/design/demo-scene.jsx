@@ -210,8 +210,44 @@ const Ico = {
   check: (c, s = 20) => <svg width={s} height={s} viewBox="0 0 24 24" fill="none"><path d="M4 12.5l5 5 11-12" stroke={c} strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" /></svg>,
   share: (c, s = 22) => <svg width={s} height={s} viewBox="0 0 24 24" fill="none"><path d="M12 3v13" stroke={c} strokeWidth="2" strokeLinecap="round" /><path d="M8 7l4-4 4 4" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /><path d="M6 11v7a1.5 1.5 0 001.5 1.5h9A1.5 1.5 0 0018 18v-7" stroke={c} strokeWidth="2" strokeLinecap="round" /></svg>,
   trash: (c, s = 22) => <svg width={s} height={s} viewBox="0 0 24 24" fill="none"><path d="M5 7h14M10 7V5.5A1.5 1.5 0 0111.5 4h1A1.5 1.5 0 0114 5.5V7M7 7l1 12.5A1.5 1.5 0 009.5 21h5a1.5 1.5 0 001.5-1.5L17 7" stroke={c} strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" /></svg>,
+  micOff: (c, s = 17) => <svg width={s} height={s} viewBox="0 0 24 24" fill="none"><path d="M9 5.6a3 3 0 016 0v4.1" stroke={c} strokeWidth="1.9" strokeLinecap="round" /><path d="M9 10.4V11a3 3 0 004.5 2.6" stroke={c} strokeWidth="1.9" strokeLinecap="round" /><path d="M5.6 11a6.4 6.4 0 009.9 5.4M18.4 11a6.3 6.3 0 01-.5 2.5" stroke={c} strokeWidth="1.9" strokeLinecap="round" /><path d="M12 17.6V21" stroke={c} strokeWidth="1.9" strokeLinecap="round" /><path d="M3.6 3.6l16.8 16.8" stroke={c} strokeWidth="2" strokeLinecap="round" /></svg>,
   plug: (c, s = 20) => <svg width={s} height={s} viewBox="0 0 24 24" fill="none"><path d="M9 3v5M15 3v5" stroke={c} strokeWidth="2" strokeLinecap="round" /><path d="M6.5 8h11v3a5.5 5.5 0 01-11 0z" stroke={c} strokeWidth="2" strokeLinejoin="round" /><path d="M12 16.5V21" stroke={c} strokeWidth="2" strokeLinecap="round" /></svg>,
 };
+
+// determinate progress ring — the one progress shape used everywhere (nav bar,
+// status row, HUD). Track + accent arc, no indeterminate spinner: a render has
+// a known length, so the UI should say how much of it is left.
+function Ring({ p = 0, size = 22, w = 2.6, color, track }) {
+  const r = (size - w) / 2, C = 2 * Math.PI * r;
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ transform: 'rotate(-90deg)', display: 'block' }}>
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={track} strokeWidth={w} />
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color} strokeWidth={w} strokeLinecap="round" strokeDasharray={C} strokeDashoffset={C * (1 - Math.max(0, Math.min(1, p)))} style={{ transition: 'stroke-dashoffset .18s linear' }} />
+    </svg>
+  );
+}
+const checkGlyph = (c, s = 19) => (
+  <svg width={s} height={s} viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9.4" fill={c} /><path d="M8 12.3l2.8 2.8L16.2 9.6" stroke="#fff" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" /></svg>
+);
+
+// FORM 'hud' — blocking modal progress: the render happens first, the sheet
+// only appears once the file exists. Honest, but the wait is front-loaded.
+function ExportHUD({ prog, tone, dark, onCancel }) {
+  const t = TH(dark);
+  return (
+    <div style={{ position: 'absolute', inset: 0, zIndex: 105, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: '-apple-system, system-ui', background: dark ? 'rgba(0,0,0,0.5)' : 'rgba(0,0,0,0.24)', backdropFilter: 'blur(3px)', WebkitBackdropFilter: 'blur(3px)' }}>
+      <div style={{ width: 238, boxSizing: 'border-box', padding: '26px 22px 18px', borderRadius: 22, textAlign: 'center', background: dark ? 'rgba(44,44,46,0.92)' : 'rgba(250,250,252,0.94)', backdropFilter: 'blur(30px) saturate(180%)', WebkitBackdropFilter: 'blur(30px) saturate(180%)', boxShadow: '0 22px 54px -16px rgba(0,0,0,0.5)' }}>
+        <div style={{ position: 'relative', width: 64, height: 64, margin: '0 auto 16px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <Ring p={prog} size={64} w={4} color={dark ? ACCENT : ACCENT_DEEP} track={dark ? 'rgba(235,235,245,0.18)' : 'rgba(120,120,128,0.18)'} />
+          <span style={{ position: 'absolute', fontSize: 15, fontWeight: 590, fontVariantNumeric: 'tabular-nums', color: t.text }}>{Math.round(prog * 100)}%</span>
+        </div>
+        <div style={{ fontSize: 16.5, fontWeight: 640, letterSpacing: -0.3, color: t.text }}>Preparing to share</div>
+        <div style={{ fontSize: 13.5, lineHeight: 1.4, color: t.text2, marginTop: 4 }}>Applying Enhance · {tone}</div>
+        <button onClick={onCancel} style={{ marginTop: 16, border: 'none', background: 'transparent', padding: '8px 12px', cursor: 'pointer', fontSize: 16, fontWeight: 590, color: dark ? ACCENT : ACCENT_DEEP }}>Cancel</button>
+      </div>
+    </div>
+  );
+}
 
 // small monitoring pill (headphones + tone name)
 function MonitorPill({ label, dark = true }) {
@@ -322,13 +358,43 @@ function EnhanceSlider({ value, onChange, dark = false }) {
  * header reads a dimmed "Monitoring off" and the hint line explains why —
  * recording itself is unaffected.
  */
-function TakeScreen({ mode: modeProp, dark = false, signal = 'good', wired = true, countIn = '', explain = '', monitoring = false, scrub = '', played = 'amber', dim = '', fadeSpan = 9, fadeMin = 0.26, tall = '', dot = 'on', lineW = 3, edge = 12 }) {
+function TakeScreen({ mode: modeProp, dark = false, signal = 'good', wired = true, countIn = '', explain = '', monitoring = false, perm = '', alert: alertProp = '', notice = '', noticeAt = 'coach', exportFlow = '', scrub = '', played = 'amber', dim = '', fadeSpan = 9, fadeMin = 0.26, tall = '', dot = 'on', lineW = 3, edge = 12 }) {
   const scrubMarker = (scrub && scrub !== 'false') ? scrub : null; // 'twin' | 'needle' | 'split' — centre-locked playhead treatment
   const isWired = !(wired === false || wired === 'false');
   const isMonitoring = monitoring === true || monitoring === 'true'; // live monitoring is a post-MVP feature; MVP record screen has no monitor state
   const explainMode = (explain && explain !== 'false') ? explain : null;
   const isDark = dark === true || dark === 'true';
   const th = TH(isDark);
+  // ── MIC PERMISSION / INPUT AVAILABILITY — S12–S14, S28 ───────────────
+  // `perm` makes Record unavailable and puts the reason in the reserved line
+  // above the transport. Only the record flow is affected: the list and
+  // playback stay fully usable, so nothing already captured is held hostage.
+  const PERM = {
+    denied:     { line: 'Microphone access is off',        action: 'Open Settings' },
+    revoked:    { line: 'Microphone access is off',        action: 'Open Settings' },
+    restricted: { line: 'Microphone access is restricted', sub: 'Managed in Screen Time' },
+    nodevice:   { line: 'No microphone available',         sub: 'Connect a microphone to record' },
+  };
+  const permInfo = (perm && perm !== 'false' && perm !== 'granted') ? PERM[perm] : null;
+  const micBlocked = !!permInfo;
+  // Persistent, sometimes-actionable notices share one channel with the mic
+  // states — separate from the transient coaching line, which stays a
+  // three-case enum. `noticeAt`: 'coach' (in the coaching slot) | 'row'
+  // (own row above the tray) | 'block' (the content block becomes the notice).
+  const NOTICES = {
+    playfail: { line: 'This demo couldn\u2019t be opened', action: 'Try Again', body: 'The audio file is missing or damaged. The rest of your demos are fine.' },
+    lowspace: { line: '5 min of recording left', sub: 'Free up space to record for longer' },
+  };
+  const noticeInfo = permInfo || ((notice && notice !== 'false') ? NOTICES[notice] : null);
+  const noticeForm = noticeInfo ? noticeAt : null;
+  const blockForm = noticeForm === 'block';
+  // alerts that land on return to the app, after capture has already stopped
+  const ALERTS = {
+    revoked:    { title: 'Microphone Access Is Off', msg: 'Demo Memos can\u2019t record without the microphone. You can turn access back on in Settings.', secondary: 'Not Now', primary: 'Open Settings' },
+    revokedmid: { title: 'Recording Stopped',        msg: 'Microphone access was turned off while Demo Memos was in the background. Everything up to 1:12 was saved as \u201cNew Demo 3\u201d.', secondary: 'Not Now', primary: 'Open Settings' },
+    diskfull:   { title: 'Storage Full',             msg: 'Recording stopped because your iPhone ran out of space. Everything up to 4:12 was saved as \u201cNew Demo 3\u201d.', secondary: 'OK', primary: 'Manage Storage' },
+  };
+  const alertInfo = (alertProp && alertProp !== 'false') ? ALERTS[alertProp] : null;
   const mode0 = modeProp || 'monitor';
   const [mode, setMode] = useState(mode0);
   const isPlayback = mode === 'playback';
@@ -338,6 +404,31 @@ function TakeScreen({ mode: modeProp, dark = false, signal = 'good', wired = tru
 
   const [enhance, setEnhance] = useState(0.5);
   const [share, setShare] = useState(false);
+  // ── SHARING A RENDERED FILE — S42/S43 ───────────────────────────────
+  // Enhance is a live setting, so a shareable file has to be rendered before
+  // it can leave the app. `exportFlow` decides where that wait lives:
+  // 'hud' (block, then raise the sheet) | 'promise' (raise the sheet first and
+  // hand over a promised file) | 'inline' (status row, screen stays live).
+  const xFlow = (exportFlow && exportFlow !== 'false') ? exportFlow : null;
+  const [xprog, setXprog] = useState(null);
+  const [xready, setXready] = useState(false);
+  const xRunning = xprog !== null && !xready;
+  const startExport = () => {
+    if (!xFlow) { setShare(true); return; }
+    setXready(false); setXprog(0);
+    if (xFlow === 'promise') setShare(true);
+  };
+  useEffect(() => {
+    if (!xRunning) return;
+    const id = setInterval(() => setXprog((v) => {
+      const nv = Math.min(1, v + 0.012 + Math.random() * 0.012);
+      if (nv >= 1) queueMicrotask(() => { setXready(true); if (xFlow !== 'promise') setShare(true); });
+      return nv;
+    }), 110);
+    return () => clearInterval(id);
+  }, [xRunning]);
+  useEffect(() => { if (!xFlow) return; const id = setTimeout(() => startExport(), 900); return () => clearTimeout(id); }, []);
+  const [showAlert, setShowAlert] = useState(true);
   const [showExp, setShowExp] = useState(isMonitoring && !!explainMode && !isWired); // monitoring explainer sheet
   const [name, setName] = useState('New Demo 1');
   const nextNum = useRef(1); // auto-incrementing default name for each new take
@@ -425,10 +516,72 @@ function TakeScreen({ mode: modeProp, dark = false, signal = 'good', wired = tru
   const scrubTimeLabel = (() => { const s = Math.round(p * total); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; })();
 
   const playIco = (s) => playing ? Ico.pause(isDark ? ACCENT : ACCENT_DEEP, s) : Ico.play(isDark ? ACCENT : ACCENT_DEEP, s);
-  const labeled = (btn, label) => <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>{btn}<span style={{ fontSize: 13, color: th.text2, fontWeight: 500 }}>{label}</span></div>;
+  const labeled = (btn, label, dim) => <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>{btn}<span style={{ fontSize: 13, color: dim ? th.text4 : th.text2, fontWeight: 500 }}>{label}</span></div>;
   const playBtn = (size, disabled) => <button onClick={doPlay} disabled={disabled} style={{ width: size, height: size, borderRadius: 999, border: 'none', cursor: disabled ? 'default' : 'pointer', background: rgbaAccent(isDark ? 0.2 : 0.14), display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: disabled ? 0.35 : 1, transition: 'opacity .2s' }}>{playIco(Math.round(size * 0.42))}</button>;
   const resumeBtn = (size, disabled) => <button onClick={doResume} disabled={disabled} style={{ width: size, height: size, borderRadius: 999, border: `4px solid ${th.recBorder}`, boxSizing: 'border-box', padding: 0, cursor: disabled ? 'default' : 'pointer', background: 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: disabled ? 0.35 : 1, transition: 'opacity .2s' }}><div style={{ width: size * 0.4, height: size * 0.4, borderRadius: 999, background: ACCENT }} /></button>;
   const stopBtn = (size) => <button onClick={doStop} style={{ width: size, height: size, borderRadius: 999, border: `4px solid ${th.recBorder}`, boxSizing: 'border-box', padding: 0, cursor: 'pointer', background: 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><div style={{ width: size * 0.4, height: size * 0.4, borderRadius: 9, background: ACCENT }} /></button>;
+
+  // disabled Record (S13/S14): ring holds its place, the amber disc goes grey,
+  // the whole control sits at 45% — nothing on screen is amber and inviting.
+  const blockedBtn = (size) => <button disabled aria-disabled="true" style={{ width: size, height: size, borderRadius: 999, border: `4px solid ${th.recBorder}`, boxSizing: 'border-box', padding: 0, background: 'transparent', cursor: 'default', opacity: 0.45, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'opacity .2s' }}><div style={{ width: size * 0.78, height: size * 0.78, borderRadius: 999, background: th.text3 }} /></button>;
+
+  const permNotice = noticeInfo && (
+    <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: noticeInfo.action ? 13 : 5 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 15, fontWeight: 590, letterSpacing: -0.2, color: th.text }}>
+        {Ico.micOff(th.text2, 17)}<span>{noticeInfo.line}</span>
+      </div>
+      {noticeInfo.action ? (
+        <button style={{ border: 'none', cursor: 'pointer', background: rgbaAccent(isDark ? 0.2 : 0.14), color: isDark ? ACCENT : ACCENT_DEEP, fontSize: 15, fontWeight: 640, letterSpacing: -0.2, padding: '9px 18px', borderRadius: 999 }}>{noticeInfo.action}</button>
+      ) : (
+        <div style={{ fontSize: 14, color: th.text2 }}>{noticeInfo.sub}</div>
+      )}
+    </div>
+  );
+
+  // FORM 'row' — the notice gets its own persistent row above the tray, so it
+  // never competes with the transient coaching line for the same 24pt.
+  const noticeRow = noticeInfo && (
+    <div style={{ width: '100%', padding: '0 24px', boxSizing: 'border-box' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px 12px 15px', borderRadius: 14, background: isDark ? 'rgba(118,118,128,0.24)' : '#fff', boxShadow: isDark ? 'none' : '0 1px 3px rgba(0,0,0,0.05)' }}>
+        <span style={{ display: 'flex', flexShrink: 0 }}>{Ico.micOff(th.text2, 19)}</span>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 14.5, fontWeight: 590, letterSpacing: -0.2, color: th.text }}>{noticeInfo.line}</div>
+          {(noticeInfo.sub || noticeInfo.body) && <div style={{ fontSize: 12.5, lineHeight: 1.35, color: th.text2, marginTop: 2 }}>{noticeInfo.sub || noticeInfo.body}</div>}
+        </div>
+        {noticeInfo.action && <button style={{ flexShrink: 0, border: 'none', background: 'transparent', padding: 0, cursor: 'pointer', fontSize: 15, fontWeight: 640, letterSpacing: -0.2, color: isDark ? ACCENT : ACCENT_DEEP }}>{noticeInfo.action}</button>}
+      </div>
+    </div>
+  );
+
+  // FORM 'block' — for a recorder that can never work as things stand, the
+  // title / waveform / timer are theatre: there is no take and none is coming.
+  // The content block becomes the message instead, iOS empty-state shape.
+  const noticeBlock = noticeInfo && (
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', paddingBottom: 40, marginTop: -30 }}>
+      <div style={{ width: 62, height: 62, borderRadius: 999, background: isDark ? 'rgba(118,118,128,0.24)' : 'rgba(120,120,128,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 20 }}>{Ico.micOff(th.text3, 30)}</div>
+      <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: -0.4, color: th.text }}>{noticeInfo.line}</div>
+      <div style={{ fontSize: 15, lineHeight: 1.5, color: th.text2, marginTop: 8, maxWidth: 262, textWrap: 'balance' }}>{noticeInfo.body || noticeInfo.sub || 'Turn the microphone back on in Settings to record a demo.'}</div>
+      {noticeInfo.action && <button style={{ marginTop: 22, border: 'none', cursor: 'pointer', background: rgbaAccent(isDark ? 0.2 : 0.14), color: isDark ? ACCENT : ACCENT_DEEP, fontSize: 16, fontWeight: 640, letterSpacing: -0.2, padding: '12px 22px', borderRadius: 999 }}>{noticeInfo.action}</button>}
+    </div>
+  );
+
+  // FORM 'inline' — the render reports into the notice channel from 16b: a
+  // persistent row that never touches the coaching slot, with Cancel while it
+  // runs and Share once it lands. Nothing above it is blocked.
+  const exportRow = (
+    <div style={{ width: '100%', padding: '0 24px', boxSizing: 'border-box' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px 12px 15px', borderRadius: 14, background: isDark ? 'rgba(118,118,128,0.24)' : '#fff', boxShadow: isDark ? 'none' : '0 1px 3px rgba(0,0,0,0.05)' }}>
+        <span style={{ display: 'flex', flexShrink: 0, width: 20, justifyContent: 'center' }}>
+          {xready ? checkGlyph(isDark ? ACCENT : ACCENT_DEEP, 20) : <Ring p={xprog || 0} size={20} w={2.4} color={isDark ? ACCENT : ACCENT_DEEP} track={isDark ? 'rgba(235,235,245,0.2)' : 'rgba(120,120,128,0.2)'} />}
+        </span>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 14.5, fontWeight: 590, letterSpacing: -0.2, color: th.text }}>{xready ? 'Ready to share' : 'Preparing to share'}</div>
+          <div style={{ fontSize: 12.5, lineHeight: 1.35, color: th.text2, marginTop: 2 }}>{xready ? `${name} · 0:37` : `Applying Enhance · ${toneName(enhance)} — ${Math.round((xprog || 0) * 100)}%`}</div>
+        </div>
+        <button onClick={() => (xready ? setShare(true) : (setXprog(null), setXready(false)))} style={{ flexShrink: 0, border: 'none', background: 'transparent', padding: 0, cursor: 'pointer', fontSize: 15, fontWeight: 640, letterSpacing: -0.2, color: isDark ? ACCENT : ACCENT_DEEP }}>{xready ? 'Share' : 'Cancel'}</button>
+      </div>
+    </div>
+  );
 
   const coachMap = {
     low: { c: th.text2, txt: 'Move a little closer', ico: (
@@ -450,11 +603,12 @@ function TakeScreen({ mode: modeProp, dark = false, signal = 'good', wired = tru
   if (mode === 'recording') { mainBtn = stopBtn(66); mainLabel = 'Stop'; }
   else if (mode === 'countin') { mainBtn = countBtn(66); mainLabel = 'Record'; }
   else if (mode === 'stopped' || isPlayback) { mainBtn = resumeBtn(66, playing); mainLabel = 'Resume'; }
+  else if (micBlocked) { mainBtn = blockedBtn(66); mainLabel = 'Record'; }
   else { mainBtn = recordBtn(66); mainLabel = 'Record'; } // monitor / ready
   const flowTransport = (
     <div style={{ display: 'flex', gap: 44 }}>
-      {labeled(playBtn(66, !canPlay), playing ? 'Pause' : 'Play')}
-      {labeled(mainBtn, mainLabel)}
+      {labeled(playBtn(66, !canPlay), playing ? 'Pause' : 'Play', !canPlay)}
+      {labeled(mainBtn, mainLabel, micBlocked)}
     </div>
   );
 
@@ -480,7 +634,7 @@ function TakeScreen({ mode: modeProp, dark = false, signal = 'good', wired = tru
           ) : <span />
         ) : mode === 'recording' ? <span /> : (
           <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
-            <button onClick={() => setShare(true)} style={{ border: 'none', background: 'transparent', cursor: 'pointer', padding: 0, display: 'flex' }}>{Ico.share(ACCENT, 22)}</button>
+            <button onClick={startExport} style={{ border: 'none', background: 'transparent', cursor: 'pointer', padding: 0, display: 'flex' }}>{(xFlow === 'inline' && xRunning) ? <Ring p={xprog || 0} size={22} color={ACCENT} track={rgbaAccent(0.28)} /> : Ico.share(ACCENT, 22)}</button>
             <span style={{ color: ACCENT, fontSize: 17, fontWeight: 590, cursor: 'pointer' }}>Done</span>
           </div>
         )}
@@ -506,6 +660,7 @@ function TakeScreen({ mode: modeProp, dark = false, signal = 'good', wired = tru
       <div style={{ height: '100%', position: 'relative', display: 'flex', flexDirection: 'column', background: th.pageBg, fontFamily: '-apple-system, system-ui' }}>
         {header}
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'flex-start', alignItems: 'center', padding: '90px 24px 0' }}>
+          {blockForm ? noticeBlock : <React.Fragment>
           {isPlayback ? (
             <input value={name} onChange={(e) => setName(e.target.value)} style={{ border: 'none', outline: 'none', background: 'transparent', textAlign: 'center', width: '100%', fontSize: 24, fontWeight: 680, color: th.text, letterSpacing: -0.4, lineHeight: 1.25, padding: 0, margin: 0 }} />
           ) : (
@@ -523,16 +678,22 @@ function TakeScreen({ mode: modeProp, dark = false, signal = 'good', wired = tru
             )}
           </div>
           {/* input-coaching line — record flow only (playback has no live meter) */}
-          {!isPlayback && (
+          {noticeForm === 'coach' && permNotice}
+          {noticeForm !== 'coach' && !isPlayback && (
             <div style={{ height: 24, marginTop: 14, display: 'flex', alignItems: 'center', gap: 7, fontSize: 14, fontWeight: 570, letterSpacing: -0.2, opacity: coachInfo ? 1 : 0, transition: 'opacity .25s ease', color: coachInfo ? coachInfo.c : 'transparent' }}>
               {coachInfo && coachInfo.ico}
               <span>{coachInfo ? coachInfo.txt : ''}</span>
             </div>
           )}
+          </React.Fragment>}
         </div>
         {/* transport tray */}
         <div style={{ padding: '0 0 42px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: isPlayback ? 26 : 20 }}>
-          <EnhanceSlider value={enhance} onChange={setEnhance} dark={isDark} />
+          {noticeForm === 'row' && noticeRow}
+          {xFlow === 'inline' && (xRunning || xready) && exportRow}
+          <div style={{ opacity: micBlocked ? 0.4 : 1, pointerEvents: micBlocked ? 'none' : 'auto', transition: 'opacity .2s' }}>
+            <EnhanceSlider value={enhance} onChange={setEnhance} dark={isDark} />
+          </div>
           {isMonitoring && mode === 'monitor' && <div style={{ fontSize: 13, color: th.text3 }}>{isWired ? 'Dial in the sound, then record' : 'Plug in wired headphones to hear yourself'}</div>}
           {transport}
         </div>
@@ -542,8 +703,10 @@ function TakeScreen({ mode: modeProp, dark = false, signal = 'good', wired = tru
             <span key={count} style={{ fontSize: 132, fontWeight: 200, letterSpacing: -4, color: isDark ? '#fff' : '#1c1c1e', fontVariantNumeric: 'tabular-nums', display: 'inline-block', animation: 'ciNum 1s cubic-bezier(.2,.7,.3,1)' }}>{count}</span>
           </div>
         )}
+        {alertInfo && showAlert && <SystemAlert info={alertInfo} dark={isDark} onClose={() => setShowAlert(false)} />}
         {showExp && <MonitorSheet dark={isDark} onClose={() => setShowExp(false)} />}
-        {share && <ShareSheet demo={{ name, dur: '0:37' }} onClose={() => setShare(false)} dark={isDark} />}
+        {xFlow === 'hud' && xRunning && <ExportHUD prog={xprog} tone={toneName(enhance)} dark={isDark} onCancel={() => { setXprog(null); setXready(false); }} />}
+        {share && <ShareSheet demo={{ name, dur: '0:37' }} preparing={xFlow === 'promise' && xRunning ? xprog : null} onClose={() => { setShare(false); if (xFlow) { setXprog(null); setXready(false); } }} dark={isDark} />}
       </div>
     </IOSDevice>
   );
@@ -596,7 +759,7 @@ const G = {
   folder: (c) => <svg width="21" height="21" viewBox="0 0 24 24" fill="none"><path d="M3.5 8.5A2 2 0 015.5 6.5h3l2 2h8A2 2 0 0120.5 10.5v6a2 2 0 01-2 2h-13a2 2 0 01-2-2z" stroke={c} strokeWidth="1.8" strokeLinejoin="round" /></svg>,
   wave: (c) => <svg width="21" height="21" viewBox="0 0 24 24" fill="none"><path d="M5 12v0M9 8v8M13 5v14M17 9v6M21 12v0" stroke={c} strokeWidth="2" strokeLinecap="round" /></svg>,
 };
-function ShareSheet({ demo, onClose, dark = false }) {
+function ShareSheet({ demo, onClose, dark = false, preparing = null }) {
   const [up, setUp] = useState(false);
   useEffect(() => { const r = requestAnimationFrame(() => setUp(true)); return () => cancelAnimationFrame(r); }, []);
   const close = () => { setUp(false); setTimeout(onClose, 260); };
@@ -620,10 +783,15 @@ function ShareSheet({ demo, onClose, dark = false }) {
             <div style={{ width: 46, height: 46, borderRadius: 11, background: rgbaAccent(0.16), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{Ico.wand(dark ? ACCENT : ACCENT_DEEP, 24)}</div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 16, fontWeight: 600, color: txt }}>{demo.name}</div>
-              <div style={{ fontSize: 13, color: txt2 }}>Audio · {demo.dur || '0:37'}</div>
+              <div style={{ fontSize: 13, color: preparing !== null ? (dark ? ACCENT : ACCENT_DEEP) : txt2, fontVariantNumeric: 'tabular-nums' }}>{preparing !== null ? `Preparing… ${Math.round(preparing * 100)}%` : `Audio · ${demo.dur || '0:37'}`}</div>
             </div>
             <button onClick={close} style={{ width: 30, height: 30, borderRadius: 999, border: 'none', background: dark ? 'rgba(235,235,245,0.18)' : 'rgba(120,120,128,0.18)', color: txt2, fontSize: 14, cursor: 'pointer', flexShrink: 0 }}>✕</button>
           </div>
+          {preparing !== null && (
+            <div style={{ height: 3, borderRadius: 2, background: dark ? 'rgba(255,255,255,0.14)' : 'rgba(60,60,67,0.12)', margin: '-4px 2px 12px', overflow: 'hidden' }}>
+              <div style={{ height: '100%', width: `${Math.round(preparing * 100)}%`, borderRadius: 2, background: dark ? ACCENT : ACCENT_DEEP, transition: 'width .18s linear' }} />
+            </div>
+          )}
           <div style={{ display: 'flex', gap: 12, overflowX: 'auto', padding: '6px 2px 20px' }}>
             <AppTile bg="linear-gradient(180deg,#3d8bff,#0a6cff)" label="AirDrop" dark={dark}>{G.airdrop}</AppTile>
             <AppTile bg="#34c759" label="Messages" dark={dark}>{G.bubble}</AppTile>
@@ -640,6 +808,36 @@ function ShareSheet({ demo, onClose, dark = false }) {
               </div>
             ))}
           </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════
+// SYSTEM ALERT (UIAlertController) — the notice that lands on return
+// to the app after capture has already stopped: permission revoked
+// mid-take (S28), storage full mid-take (S27). Build with .alert() in
+// SwiftUI; this is here only to fix the copy and the button order.
+// ══════════════════════════════════════════════════════════
+function SystemAlert({ info, dark, onClose }) {
+  const txt = dark ? '#fff' : '#1c1c1e';
+  const txt2 = dark ? 'rgba(235,235,245,0.6)' : 'rgba(60,60,67,0.6)';
+  const hair = dark ? 'rgba(255,255,255,0.14)' : 'rgba(60,60,67,0.16)';
+  const btn = (label, strong) => (
+    <button onClick={onClose} style={{ flex: 1, border: 'none', background: 'transparent', padding: '11px 6px', cursor: 'pointer', color: ACCENT, fontSize: 17, fontWeight: strong ? 640 : 400, fontFamily: '-apple-system, system-ui', letterSpacing: -0.2 }}>{label}</button>
+  );
+  return (
+    <div onClick={onClose} style={{ position: 'absolute', inset: 0, zIndex: 90, display: 'flex', alignItems: 'center', justifyContent: 'center', background: dark ? 'rgba(0,0,0,0.5)' : 'rgba(0,0,0,0.28)' }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ width: 270, borderRadius: 14, overflow: 'hidden', background: dark ? 'rgba(44,44,46,0.92)' : 'rgba(248,248,250,0.92)', backdropFilter: 'blur(34px) saturate(180%)', WebkitBackdropFilter: 'blur(34px) saturate(180%)', textAlign: 'center' }}>
+        <div style={{ padding: '19px 16px 17px' }}>
+          <div style={{ fontSize: 17, fontWeight: 640, color: txt, letterSpacing: -0.2 }}>{info.title}</div>
+          <div style={{ fontSize: 13, lineHeight: 1.38, color: txt2, marginTop: 5, textWrap: 'pretty' }}>{info.msg}</div>
+        </div>
+        <div style={{ display: 'flex', borderTop: `0.5px solid ${hair}` }}>
+          {btn(info.secondary, false)}
+          <div style={{ width: '0.5px', background: hair }} />
+          {btn(info.primary, true)}
         </div>
       </div>
     </div>

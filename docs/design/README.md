@@ -169,8 +169,50 @@ Play button: `66pt` circle, bg `accent @ 0.14` (light) / `0.20` (dark), glyph ac
 
 **Naming** — takes default to `New Demo {n}` with an auto-incrementing counter. Rename by tapping the title on playback.
 
+**One reserved line, for every notice.** A single reserved slot above the transport carries every in-place message — centred line, optional second line, optional tinted capsule. No cards, no empty states, no second channel. It keeps the screen identical in every state: nothing above it moves, nothing below it jumps.
+
+The slot is shared with the transient coaching line, so it resolves by **precedence, not a second channel** — **mic state → playback failure → capacity → coaching**, highest one wins. In practice they barely compete: coaching only speaks while capture is running, and every mic notice means capture can't run. Two behavioural differences hold:
+
+- A **notice** appears instantly and persists; **coaching** cross-fades (`.25s`).
+- Only a **notice** may carry an action.
+
+| Message | Channel | Form |
+|---|---|---|
+| Mic denied / restricted / unavailable | Notice | Reserved line + Open Settings capsule (`#16a`) |
+| Playback failure — file missing or damaged | Notice | Reserved line + **Try Again** (`#16d`) |
+| Low space, non-default input | Notice | Reserved line, no capsule |
+| Input too quiet / clipping | Coaching | Reserved line, three-case enum, cross-fades |
+| Recording failure — write error, storage full, revoked mid-take | Alert | System alert (`#15e`) |
+| Interruption — call, Siri, another app | Neither | State change only: header reads **Paused**, right button becomes Resume |
+| Playback reached the end | Neither | Marker parks, button returns to Play |
+
+In build: **one slot, one resolver** — the screen picks the highest-precedence message and renders it. `InlineNotice` (`#13a`) *is* that slot, not a new component.
+
+**One transport rule:** a transport button is dim (`opacity .35` for Play/Resume, `.45` for the blocked Record disc) whenever it cannot act — "no take yet" and "no microphone" get the same treatment. Never enabled-and-inert.
+
+#### Microphone permission & input availability
+The record flow has four unavailable states. **Only the record flow is affected** — the list and playback stay fully usable; nothing already captured is gated behind a permission.
+
+**Disabled-Record treatment** (shared by all four): the transport keeps both buttons and both labels — the ring stays at `4pt recBorder`, the accent disc is replaced by a `text3` grey disc at the same 78% size, the whole button sits at `opacity 0.45` (`.2s` transition), and the "Record" label drops to `text4`. The Enhance dial dims to `opacity 0.4` and stops accepting input. The reason is delivered in the **reserved line** described above — one line, then **Open Settings** as a tinted capsule where a route out exists — and never red: this is a state, not an error.
+
+| Case | `perm` | Line | Route out |
+|---|---|---|---|
+| Denied | `denied` | **Microphone access is off** | Open Settings → `UIApplication.openSettingsURLString` |
+| Restricted (Screen Time / MDM) | `restricted` | **Microphone access is restricted** / "Managed in Screen Time" | none — the switch won't move for this user |
+| No input device | `nodevice` | **No microphone available** / "Connect a microphone to record" | none — Settings can't fix hardware |
+| Revoked between launches | `revoked` + alert | same as denied, with an alert on entry | Not Now / Open Settings |
+
+**Alerts** (`SystemAlert` in the prototype → SwiftUI `.alert()`; 270pt, radius 14, material, title 17/640, message 13/1.38, two side-by-side buttons split by a 0.5pt hairline, accent text, no destructive styling). Only used when capture **stopped or never started against the user's expectation**:
+- *Revoked between launches* — "Microphone Access Is Off" / "Demo Memos can't record without the microphone. You can turn access back on in Settings." · Not Now / **Open Settings**
+- *Revoked mid-take* — "Recording Stopped" / names the length saved and the demo it went into, then Settings. Lands on `stopped` with the partial take.
+- *Storage full mid-take* — "Storage Full" / same sentence shape. · OK / **Manage Storage**
+
+Anything the user themselves just switched off resolves in place, with no alert.
+
 ### 3. Share sheet (native)
 Use `ShareLink` / `UIActivityViewController` — do not build this. The prototype's version shows the intended payload: a **header row** (46pt accent-tinted rounded square with wand glyph, name 16/600, "Audio · 0:37" 13 `text2`, close button), the standard app row (AirDrop, Messages, Mail, Notes, Copy), and three actions: **Copy Link**, **Save to Files**, **Export Audio…**. Sharing is a first-class feature: reachable from the list (swipe) and from the take screen header.
+
+**Sharing needs a render** (`#17`, FINAL). Enhance is a live setting, so a shareable file has to be rendered before it can leave the app. The sheet opens on the tap and the file is **promised, not waited for** — raise it immediately and hand over a `UIActivityItemProvider`, so choosing a destination and rendering happen in parallel. Progress sits on the sheet's header row (subtitle counts, 3px bar beneath it); nothing dims, nothing is disabled, and there is no second modal. An already-rendered demo opens the sheet instantly with no progress at all, and a render under ~500ms shows nothing unless that deadline passes. See `#17e` for the rule per situation.
 
 ### 4. Onboarding — `OnboardFeatures`
 **Shown once**, gated on a persisted `hasOnboarded` flag; never shown again. iOS "What's New" pattern.
@@ -239,4 +281,4 @@ All other iconography in the prototype is hand-drawn SVG standing in for **SF Sy
 | `support.js` | Prototype runtime. Ignore. |
 | `app-icon/*.png` | Ship these. |
 
-To read a specific screen in the doc, the anchors are: `#1a` Demos · `#1b` Record · `#1c` Playback · `#1d` state matrix · `#2a–2c` dark mode · `#3a` resume transport · `#12a` final scrub · `#8a` count-in · `#6a/6b` waveform study · `#5a` onboarding · `#4a` empty state · `#10c` app icon.
+To read a specific screen in the doc, the anchors are: `#1a` Demos · `#1b` Record · `#1c` Playback · `#1d` state matrix · `#2a–2c` dark mode · `#3a` resume transport · `#12a` final scrub · `#8a` count-in · `#6a/6b` waveform study · `#5a` onboarding · `#4a` empty state · `#10c` app icon · `#15a`–`#15g` microphone permission states · `#16a`–`#16f` the reserved notice line & precedence · `#17b`–`#17e` sharing a rendered file · `#13a` component inventory · `#14` the full state register.
