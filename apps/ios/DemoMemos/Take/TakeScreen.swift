@@ -36,7 +36,15 @@ struct TakeScreen: View {
   /// no opinion on what recording or playing *does*.
   var onTransport: (TransportRole) -> Void = { _ in }
 
+  /// The notice capsule was tapped. Routing out of the app is not the screen's
+  /// job either.
+  var onNoticeAction: (TakeNoticeAction) -> Void = { _ in }
+
   private var presentation: TakePresentation { state.presentation }
+
+  /// An alert is dismissed by the user, not by the notice going away — the
+  /// notice is what happened, and it stays true after the alert is gone.
+  @State private var dismissedAlert = false
 
   var body: some View {
     content
@@ -44,6 +52,18 @@ struct TakeScreen: View {
       .background(DesignTokens.Palette.pageBackground.ignoresSafeArea())
       .safeAreaInset(edge: .bottom) { transportTray }
       .toolbar { header }
+      .alert(
+        state.notice?.alertTitle ?? "",
+        isPresented: Binding(
+          get: { state.notice?.form == .alert && !dismissedAlert },
+          set: { if !$0 { dismissedAlert = true } })
+      ) {
+        Button("OK", role: .cancel) { dismissedAlert = true }
+      } message: {
+        Text(state.notice?.line ?? "")
+      }
+      // A new notice is a new thing to say, so it earns the interrupt again.
+      .onChange(of: state.notice) { dismissedAlert = false }
   }
 
   // MARK: - Content
@@ -70,8 +90,9 @@ struct TakeScreen: View {
       VStack(spacing: DesignTokens.Spacing.label) {
         TimerReadout(elapsed: state.timerReading, isActive: presentation.isTimerActive)
         // The slot is reserved in every mode, not just the one that fills it:
-        // collapsing it would let a hint arriving mid-take shove the tray down.
-        CoachingLine(level: presentation.showsCoaching ? state.coaching : .clear)
+        // collapsing it would let a message arriving mid-take shove the tray
+        // down. `state.slot` has already resolved notice-over-coaching (`#16`).
+        InlineNotice(slot: state.slot, onAction: onNoticeAction)
       }
     }
     .padding(.top, DesignTokens.Spacing.contentTop)
@@ -138,13 +159,22 @@ struct TakeScreen: View {
     // line calls it the side margin, and 24 sits between the handoff's two
     // values. Layout, not pixel values, is what the ticket asks to match.
     VStack(spacing: DesignTokens.Spacing.margin) {
+      // The dial dims with the recorder and stops taking input: with no
+      // microphone there is nothing to shape (`#15a`).
       EnhanceDial(value: $state.enhance)
+        .opacity(presentation.isEnhanceEnabled ? 1 : 0.4)
+        .disabled(!presentation.isEnhanceEnabled)
+        .animation(.easeInOut(duration: 0.2), value: presentation.isEnhanceEnabled)
 
       HStack(spacing: DesignTokens.Spacing.group) {
         TransportButton(role: presentation.leftRole) { onTransport(presentation.leftRole) }
           .disabled(!presentation.isLeftEnabled)
-        TransportButton(role: presentation.rightRole) { onTransport(presentation.rightRole) }
-          .disabled(!presentation.isRightEnabled)
+        TransportButton(
+          role: presentation.rightRole,
+          action: { onTransport(presentation.rightRole) },
+          isBlocked: presentation.isRecordBlocked
+        )
+        .disabled(!presentation.isRightEnabled)
       }
     }
     // The handoff's 42pt tray inset is the bottom safe area (34) plus this,
@@ -180,6 +210,11 @@ private struct TakePreview: View {
 #Preview("4.5 playing — pause, Resume dimmed") { TakePreview(state: .playing) }
 #Preview("Enhance — Hall") { TakePreview(state: .playbackHall) }
 #Preview("Zero-length take") { TakePreview(state: .zeroLength) }
+#Preview("S13 mic denied") { TakePreview(state: .micDenied) }
+#Preview("S13 mic denied — dark") {
+  TakePreview(state: .micDenied).preferredColorScheme(.dark)
+}
+#Preview("Recording failed — alert") { TakePreview(state: .recordingFailed) }
 
 #Preview("4.1 ready — dark") {
   TakePreview(state: .ready).preferredColorScheme(.dark)

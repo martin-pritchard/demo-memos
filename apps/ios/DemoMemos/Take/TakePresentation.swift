@@ -70,7 +70,24 @@ struct TakePresentation: Equatable {
   /// The title is an inline field on playback and static text everywhere else.
   let isTitleEditable: Bool
 
-  init(mode: TakeMode, isPlaying: Bool = false) {
+  /// The recorder cannot work at all — the `#15a` treatment. Drives the grey
+  /// disc on Record and dims the dial with it: there is nothing to shape.
+  let isRecordBlocked: Bool
+
+  /// The dial stops accepting input along with the recorder (`#15a`).
+  var isEnhanceEnabled: Bool { !isRecordBlocked }
+
+  init(mode: TakeMode, isPlaying: Bool = false, isRecordBlocked: Bool = false) {
+    // Only the record flow is affected (`#15`): "the list and playback stay
+    // fully usable, so nothing already captured is held hostage to a
+    // permission". A take that exists is still playable and still shapeable
+    // with no microphone, so the blocked treatment stops at `.stopped`.
+    switch mode {
+    case .ready, .countIn, .recording:
+      self.isRecordBlocked = isRecordBlocked
+    case .stopped, .playback:
+      self.isRecordBlocked = false
+    }
     switch mode {
     case .ready:
       leading = .cancel
@@ -78,7 +95,10 @@ struct TakePresentation: Equatable {
       leftRole = .play
       isLeftEnabled = false
       rightRole = .record
-      isRightEnabled = true
+      // The one transport rule (`#16f`): dim whenever it cannot act. Here the
+      // reason is "no microphone" rather than "no take yet", and it gets the
+      // same treatment.
+      isRightEnabled = !isRecordBlocked
       isTimerActive = false
       waveformMode = .resting
       showsCoaching = false
@@ -117,8 +137,12 @@ struct TakePresentation: Equatable {
       leftRole = isPlaying ? .pause : .play
       isLeftEnabled = true
       rightRole = .resume
-      // Resuming while playing would record over the thing being listened to.
-      isRightEnabled = !isPlaying
+      // Dim, not enabled-and-inert (`#16f`). Resuming onto a take is #4 and is
+      // not built, so the button cannot act for *any* take yet — "an enabled
+      // control that does nothing is a lie the user has to test to disbelieve".
+      // When #4 lands this becomes `!isPlaying` again: resuming while playing
+      // would record over the thing being listened to.
+      isRightEnabled = false
       isTimerActive = true
       waveformMode = .scrub
       showsCoaching = false
@@ -130,7 +154,8 @@ struct TakePresentation: Equatable {
       leftRole = isPlaying ? .pause : .play
       isLeftEnabled = true
       rightRole = .resume
-      isRightEnabled = !isPlaying
+      // Dim for the same reason as `.stopped`: #4 is not built.
+      isRightEnabled = false
       isTimerActive = true
       waveformMode = .scrub
       showsCoaching = false

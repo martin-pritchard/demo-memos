@@ -24,12 +24,14 @@ let restingRows: [Row] = [
   (.ready, .cancel, false, .play, false, .record, true, false, .resting, false, false),
   (.countIn(3), .cancel, false, .play, false, .countIn(3), true, false, .resting, false, false),
   (.recording, .cancel, false, .play, false, .stop, true, true, .live, true, false),
-  (.stopped, .cancel, true, .play, true, .resume, true, true, .scrub, false, false),
-  (.playback, .backToDemos, true, .play, true, .resume, true, true, .scrub, false, true),
+  // Resume is dim in both rows: `#16f` dims a transport button whenever it
+  // cannot act, and resuming onto a take is #4.
+  (.stopped, .cancel, true, .play, true, .resume, false, true, .scrub, false, false),
+  (.playback, .backToDemos, true, .play, true, .resume, false, true, .scrub, false, true),
 ]
 
-/// The same table with playback under way: the left button becomes Pause and
-/// Resume goes flat, but only in the two modes where a take exists.
+/// The same table with playback under way: the left button becomes Pause. Resume
+/// is already dim, so playing changes nothing on the right.
 let playingRows: [Row] = [
   (.ready, .cancel, false, .play, false, .record, true, false, .resting, false, false),
   (.countIn(3), .cancel, false, .play, false, .countIn(3), true, false, .resting, false, false),
@@ -116,7 +118,8 @@ struct TakePresentationTests {
     #expect(presentation.leftRole == .play)
     #expect(presentation.isLeftEnabled == true)
     #expect(presentation.rightRole == .resume)
-    #expect(presentation.isRightEnabled == true)
+    // Dim, not enabled-and-inert (`#16f`): resuming onto a take is #4.
+    #expect(presentation.isRightEnabled == false)
     #expect(presentation.isTimerActive == true)
     #expect(presentation.waveformMode == .scrub)
     #expect(presentation.showsCoaching == false)
@@ -131,7 +134,8 @@ struct TakePresentationTests {
     #expect(presentation.leftRole == .play)
     #expect(presentation.isLeftEnabled == true)
     #expect(presentation.rightRole == .resume)
-    #expect(presentation.isRightEnabled == true)
+    // Dim, not enabled-and-inert (`#16f`): resuming onto a take is #4.
+    #expect(presentation.isRightEnabled == false)
     #expect(presentation.isTimerActive == true)
     #expect(presentation.waveformMode == .scrub)
     #expect(presentation.showsCoaching == false)
@@ -183,15 +187,38 @@ struct TakePresentationTests {
     }
   }
 
-  // MARK: - Rule 3 — Resume is disabled while playing
+  // MARK: - Rule 3 — Resume is dim, because it cannot act
 
-  @Test("Resume is disabled exactly while playing", arguments: takeExistsModes)
-  func resumeIsDisabledWhilePlaying(_ mode: TakeMode) {
+  /// `#16f`'s one transport rule: a transport button is dim whenever it cannot
+  /// act. Resuming onto a take is #4 and is not built, so Resume cannot act for
+  /// *any* take yet — an enabled control that does nothing is a lie the user has
+  /// to test to disbelieve. When #4 lands this becomes `!isPlaying`.
+  @Test("Resume is dim whether or not a take is playing", arguments: takeExistsModes)
+  func resumeIsDimWhetherOrNotATakeIsPlaying(_ mode: TakeMode) {
     for isPlaying in [false, true] {
       #expect(
-        TakePresentation(mode: mode, isPlaying: isPlaying).isRightEnabled == !isPlaying,
+        TakePresentation(mode: mode, isPlaying: isPlaying).isRightEnabled == false,
         "\(mode) isPlaying: \(isPlaying)")
     }
+  }
+
+  // MARK: - Rule 4 — a blocked recorder dims Record and the dial
+
+  @Test("a blocked recorder dims Record and stops the dial taking input")
+  func aBlockedRecorderDimsRecordAndStopsTheDialTakingInput() {
+    let blocked = TakePresentation(mode: .ready, isRecordBlocked: true)
+
+    #expect(blocked.rightRole == .record)
+    #expect(blocked.isRightEnabled == false)
+    #expect(blocked.isEnhanceEnabled == false)
+  }
+
+  @Test("leaves Record and the dial alone when the recorder is fine")
+  func leavesRecordAndTheDialAloneWhenTheRecorderIsFine() {
+    let ready = TakePresentation(mode: .ready)
+
+    #expect(ready.isRightEnabled == true)
+    #expect(ready.isEnhanceEnabled == true)
   }
 
   @Test("the right button is always enabled in the record flow", arguments: recordFlowModes)

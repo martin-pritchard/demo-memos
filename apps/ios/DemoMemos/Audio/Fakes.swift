@@ -92,11 +92,40 @@ final class FakePlayer: Playing {
   /// The last warmth pushed to the player, clamped as the real one clamps.
   private(set) var lastWarmth: Double = 0
 
+  /// What a "decoded" take looks like here. Set it before `play` to give the
+  /// fake a take with a length; the real player learns this by decoding.
+  var duration: TimeInterval = 0
+
+  private(set) var loadedTake: URL?
+  private(set) var position: TimeInterval = 0
+  /// Every seek the screen asked for, in order.
+  private(set) var seekedTo: [TimeInterval] = []
+
   func play(_ url: URL) throws {
     if let playFailure { throw playFailure }
     playCount += 1
     playedURLs.append(url)
+    if url != loadedTake { position = 0 }
+    loadedTake = url
     isPlaying = true
+    // Mirrors the real player: a take parked at its end restarts from the top.
+    if duration > 0, position >= duration { position = 0 }
+  }
+
+  func seek(to position: TimeInterval, in take: URL) {
+    if take != loadedTake {
+      loadedTake = take
+      self.position = 0
+    }
+    // Mirrors the real player: only clamp against a length we actually know.
+    let clamped = duration > 0 ? min(max(position, 0), duration) : max(position, 0)
+    seekedTo.append(clamped)
+    self.position = clamped
+  }
+
+  /// Advance the playhead as if the take had been playing for `interval`.
+  func simulatePlaying(for interval: TimeInterval) {
+    position = min(position + interval, duration)
   }
 
   func stop() {
@@ -109,10 +138,12 @@ final class FakePlayer: Playing {
     lastWarmth = min(max(value, 0), 1)
   }
 
-  /// Playback reaching the end of the take.
+  /// Playback reaching the end of the take. Parks the playhead at the end, as
+  /// the real player does.
   func simulateFinished() {
     guard isPlaying else { return }
     isPlaying = false
+    position = duration
     onFinish?()
   }
 

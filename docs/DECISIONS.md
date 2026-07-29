@@ -370,3 +370,39 @@ machine. It keeps `warmth`, matching the machine it forwards to; the rename to
 the control's vocabulary happens when `TakeScreen` replaces `RecordingScreen`
 and the property is being rewritten anyway. Recorded because a repo with both
 words in it otherwise looks like drift rather than a boundary.
+
+### The playhead belongs to a take, not to the player (#53)
+
+`AudioPlayer` tears its graph down on stop, but the screen still has to draw a
+playhead for a stopped take and let you scrub it. So the position and the take's
+length outlive the engine — and the moment they do, *whose* they are matters as
+much as what they hold. Record a take, play it, record another: the player is
+still holding the first take's numbers, and a screen that reads them shows the
+new take as thirty seconds long with its marker two thirds along.
+
+`Playing` therefore names the take its playhead refers to (`loadedTake`), and
+`seek` takes the take too. `CaptureState` reports `position` and `duration` only
+while the player's take *is* the current one, so a freshly recorded take reads
+as "no length yet" rather than inheriting the last one's. The model fills that
+gap from the recorder's own elapsed count, which is the only thing that knows a
+take's length before it has been decoded.
+
+The alternative — decoding a take on stop so the player always has the numbers —
+was rejected: it pays a whole-file decode for a value the recorder already has,
+on the main actor, at the exact moment the user is waiting to hear their idea
+back.
+
+### The Enhance dial's default is a product choice, not a machine one (#53)
+
+`CaptureMachine.State.warmth` starts at 0, which is true bypass, and that is
+right for the machine: a state type should not open on an opinion. The design
+opens the dial mid-scale, at the tone the bands call Warm.
+
+Both are correct, so the default is passed in at the composition root rather
+than baked into either. `DemoMemosApp` constructs `CaptureState(warmth: 0.5)`;
+`Core` keeps 0 as its neutral start and no Core test moves. Recorded because the
+two values look like a contradiction until you know which layer owns which.
+
+Wiring `TakeScreen` is what exposed this: the stub `TakeScreenState.enhance`
+already defaulted to 0.5, so the assembled screen had always drawn the design's
+default while the machine behind it sat at 0.

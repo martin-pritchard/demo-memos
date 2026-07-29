@@ -27,15 +27,16 @@ the finished product, not the tree. What exists today:
   widens while the dry stays centred) → `mainMixerNode`. The warmth DSP itself —
   bells, shelf, drive, leveler, ceiling — is pure Swift in `Core`, tested offline
   against WAV fixtures.
-- **Screens** — two parallel worlds, and they are not yet joined.
-  `RecordingScreen` is the wired one: a Record button, a Play button and a
-  `Slider`, unstyled on purpose, and still what `DemoMemosApp` shows. The
-  designed ones — `OnboardFeatures`, `DemosListScreen`, `TakeScreen` — are
-  assembled from `Components/` and driven entirely by stub state (#51). They
-  match `docs/design/` and reach no recorder, player or disk; every state is a
-  `#Preview` away and nothing routes between them.
+- **Screens** — `TakeScreen` is wired and is what `DemoMemosApp` shows (#53).
+  It stays a pure view: `TakeScreenModel` owns the `CaptureState`, projects it
+  into a `TakeScreenState` and diffs writes back into effects, so the screen
+  still reaches no recorder, player or disk. `RecordingScreen` was the unstyled
+  scaffolding for exactly that moment and is gone. `OnboardFeatures` and
+  `DemosListScreen` are still assembled from `Components/` and driven entirely
+  by stub state (#51) — they match `docs/design/`, every state is a `#Preview`
+  away, and nothing routes between the three screens yet.
 - **Components** — `Waveform`, `TransportButton`, `EnhanceDial`, `TimerReadout`,
-  `CoachingLine`, `DemoRow`, `FeatureRow` (#48–#50), over the tokens in
+  `InlineNotice`, `DemoRow`, `FeatureRow` (#48–#50), over the tokens in
   `DesignTokens.swift` (#43).
 
 **Not built — don't assume these exist:** take persistence, naming, real share
@@ -64,6 +65,12 @@ synonym for one that already exists.
   (`CaptureNotice`): denied permission, why a take stopped, a failed start.
 - **Count-in** — the beats before capture rolls. **Coaching** — the live input
   hint under the timer (`CoachingLevel`: `clear`, `low`, `hot`).
+- **Notice** and **coaching** share **one reserved slot** above the transport
+  (`InlineNotice`), resolved by precedence rather than split across two
+  channels — design turn `#16`, FINAL. A notice outranks coaching, appears
+  instantly and persists where coaching cross-fades, and is the only one of the
+  two that may carry an action. `TakeNotice` routes a `CaptureNotice` to the
+  form it reaches the user in: the slot, a system alert, or nothing at all.
 - **Transport** — the record/play/stop pair (`TransportRole`). **Bars** — the
   waveform's levels, `0…1`. **Scrub** — dragging the **playhead**.
 
@@ -84,15 +91,16 @@ synonym for one that already exists.
     (`docs/PRINCIPLES.ios.md` #3); the fakes live in `Fakes.swift`, in the app
     target rather than the test bundle so `#Preview` can reach them.
   - `DemoMemos/Onboarding/`, `DemoMemos/Demos/`, `DemoMemos/Take/` — one folder
-    per screen, each holding the screen and its own stub-state type
-    (`DemoListItem`, `TakeScreenState`, `TakePresentation`). Feature folders,
+    per screen, each holding the screen and its own state types
+    (`DemoListItem`, `TakeScreenState`, `TakePresentation`, plus `Take/`'s
+    `TakeScreenModel` and `TakeNotice`). Feature folders,
     per `docs/PRINCIPLES.md` #1; see `DECISIONS.md` for why `Components/` did
     not get split up with them.
   - `DemoMemos/Components/` — the shared UI layer the three screens compose.
     Assembling a screen means using these; adding to them is a different ticket.
-  - `DemoMemos/RecordingScreen.swift` — the unstyled wired screen, beside the
-    composition root in `DemoMemosApp.swift`. Scaffolding that `TakeScreen`
-    replaces once the audio wiring lands.
+  - `DemoMemos/DemoMemosApp.swift` — the composition root, and the only place
+    dependencies are constructed. It builds the `CaptureState`, wraps it in a
+    `TakeScreenModel` and hands the screen a binding.
   - `Core/` — local SPM package, scheme `Core`, Swift 6 language mode. This is
     the UI-free core (`docs/PRINCIPLES.md` #3). Today: `SampleBuffer`, the
     `AudioProcessor` seam, the warmth chain (`WarmthParameters`,

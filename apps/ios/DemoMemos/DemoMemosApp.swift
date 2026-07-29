@@ -11,11 +11,19 @@ import SwiftUI
 struct DemoMemosApp: App {
 
   /// The one place dependencies are constructed (`docs/PRINCIPLES.md` #6).
-  @State private var state = DemoMemosApp.makeCaptureState()
+  @State private var model = TakeScreenModel(capture: DemoMemosApp.makeCaptureState())
 
   var body: some Scene {
     WindowGroup {
-      RecordingScreen(state: state)
+      // `TakeScreen` draws its header as a `.toolbar` and brings no stack of its
+      // own, so the container owes it one. Routing between screens is #5x — this
+      // stack has exactly one thing in it.
+      NavigationStack {
+        TakeScreen(
+          state: model.binding,
+          onTransport: model.transport,
+          onNoticeAction: model.perform)
+      }
     }
   }
 
@@ -38,6 +46,11 @@ struct DemoMemosApp: App {
       recorder: AudioRecorder(),
       player: AudioPlayer(),
       folder: folder,
-      latestTake: RecordingsFolder.takes(in: folder).last)
+      latestTake: RecordingsFolder.takes(in: folder).last,
+      // The design's starting position for the dial — mid-scale, which the tone
+      // bands name "Warm". A product default, so it belongs here at the
+      // composition root rather than baked into the machine, which keeps 0 (true
+      // bypass) as its own neutral starting point.
+      warmth: 0.5)
   }
 }
