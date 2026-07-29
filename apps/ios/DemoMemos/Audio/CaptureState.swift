@@ -34,9 +34,32 @@ final class CaptureState {
   /// nothing to say.
   var notice: String? { machine.notice?.wording }
 
+  /// The same thing as a domain fact rather than a sentence. The screen routes
+  /// it to a form (`TakeNotice`); the flattened `notice` above stays for callers
+  /// that only want the words.
+  var captureNotice: CaptureNotice? { machine.notice }
+
   var canRecord: Bool { machine.canRecord }
   var canPlay: Bool { machine.canPlay }
   var isDenied: Bool { machine.isDenied }
+
+  // MARK: - The playhead
+
+  /// Where the loaded take is up to, in seconds. `0` when nothing is loaded.
+  var position: TimeInterval { player.position }
+
+  /// The loaded take's length, `0` if none. Only known once a take has been
+  /// decoded — a take that has just been recorded has not been.
+  var duration: TimeInterval { player.duration }
+
+  /// Move the playhead. Applied live if playing, remembered for the next `play`
+  /// otherwise, so scrubbing a paused take is not lost.
+  ///
+  /// Not an event: the machine decides *transitions*, and a scrub is not one —
+  /// it changes neither the mode, the take, nor what a tap would do next.
+  func scrub(to position: TimeInterval) {
+    player.seek(to: position)
+  }
 
   /// The Enhance dial, `0...1`. In-memory for the session — resets on relaunch,
   /// no persistence (#21 non-goal). Writing it is an event like any other, so the

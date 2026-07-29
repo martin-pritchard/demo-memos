@@ -16,6 +16,18 @@ protocol Playing: AnyObject {
   /// The Enhance dial, `0...1`. Applied live if playing, remembered for the next
   /// `play` otherwise. `0` is a true bypass. In-memory only — no persistence.
   func setWarmth(_ value: Double)
+
+  /// Where the loaded take is up to, in seconds. `0` when nothing is loaded.
+  /// Survives a stop, so a paused take still has a playhead to draw.
+  var position: TimeInterval { get }
+
+  /// The loaded take's length, `0` if none. Known only once a take has been
+  /// decoded, which happens on `play`.
+  var duration: TimeInterval { get }
+
+  /// Move the playhead. Applied live if playing, remembered for the next `play`
+  /// otherwise — scrubbing a paused take is the case this exists for.
+  func seek(to position: TimeInterval)
 }
 
 /// An `AVAudioEngine` graph hosting Unit 1's hand-written warmth DSP (rung 5 of
@@ -63,7 +75,30 @@ final class AudioPlayer: Playing {
   /// Latest dial value, kept across takes for the session. Not persisted.
   private var warmth: Double = 0
 
+  /// The take the playhead below belongs to, and its shape. These outlive the
+  /// engine on purpose: `stop` tears the graph down, but a stopped take still
+  /// has to draw a playhead and be scrubbable.
+  private var loadedURL: URL?
+  private var loadedDuration: TimeInterval = 0
+  private var loadedSampleRate: Double = 0
+  /// Where the playhead sits while no graph is running.
+  private var restingPosition: TimeInterval = 0
+
   var isPlaying: Bool { engine?.isRunning ?? false }
+
+  var duration: TimeInterval { loadedDuration }
+
+  var position: TimeInterval {
+    guard let core, loadedSampleRate > 0 else { return restingPosition }
+    return Double(core.framesRendered) / loadedSampleRate
+  }
+
+  func seek(to position: TimeInterval) {
+    let clamped = min(max(position, 0), loadedDuration)
+    restingPosition = clamped
+    guard let core, loadedSampleRate > 0 else { return }
+    core.seek(toFrame: Int(clamped * loadedSampleRate))
+  }
 
   func play(_ url: URL) throws {
     stop()
@@ -82,6 +117,19 @@ final class AudioPlayer: Playing {
     let core = WarmthRenderCore(sampleRate: sampleRate)
     core.setTargetWarmth(warmth)
     core.load(samples: samples)  // snaps to the current dial — no glide on start
+
+    // A different take starts from its own beginning, never from the last one's
+    // playhead.
+    if url != loadedURL { restingPosition = 0 }
+    loadedURL = url
+    loadedSampleRate = sampleRate
+    loadedDuration = Double(samples.count) / sampleRate
+
+    // A take parked at its end restarts from the top — the design's "the next
+    // Play restarts from 0". A take scrubbed somewhere else resumes from there,
+    // which is the whole point of remembering the position across a stop.
+    let start = restingPosition >= loadedDuration ? 0 : restingPosition
+    if start > 0 { core.seek(toFrame: Int(start * sampleRate)) }
 
     // The only realtime code in the app. Captures `core` (Sendable) and nothing
     // main-actor. See `docs/PRINCIPLES.ios.md` #1.
@@ -155,6 +203,9 @@ final class AudioPlayer: Playing {
   /// `onFinish`. The user asked to stop; nothing needs explaining.
   private func teardown() {
     guard let engine else { return }
+    // Park the playhead before the core goes, so a stopped take keeps one. A
+    // take that ran to the end parks at the end, which is what the design draws.
+    restingPosition = position
     self.engine = nil
     core = nil
     reverb = nil

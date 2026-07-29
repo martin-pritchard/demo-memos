@@ -41,6 +41,18 @@ struct TakeScreenState: Equatable {
   /// recording — `TakePresentation.showsCoaching` is the gate.
   var coaching: CoachingLevel = .clear
 
+  /// Anything the capture layer has to tell the user, already routed to the form
+  /// the design gives it (`#16f`). Shares the one reserved slot with `coaching`
+  /// and outranks it; see `TakeSlot.resolve(notice:coaching:)`.
+  var notice: TakeNotice?
+
+  /// What the reserved slot above the transport is actually showing — one slot,
+  /// one resolver (`#16`). Coaching only speaks while there is live input, so
+  /// the presentation's gate still applies to it.
+  var slot: TakeSlot {
+    TakeSlot.resolve(notice: notice, coaching: presentation.showsCoaching ? coaching : .clear)
+  }
+
   /// The §4 table, resolved for this state.
   var presentation: TakePresentation {
     TakePresentation(mode: mode, isPlaying: isPlaying)
