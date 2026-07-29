@@ -2,10 +2,13 @@ import SwiftUI
 
 /// The take, drawn as bars — one `Canvas`, three modes.
 ///
-/// It is a single drawing surface rather than N views because the handoff asks
-/// for one in as many words, and because the bars, the warm bloom behind them
-/// and the fixed centre marker then share a coordinate space instead of being
-/// stacked and kept in step by hand.
+/// Every bar, and the marker over them, is a single drawing surface rather than
+/// N views because the handoff asks for one in as many words. The bloom behind
+/// them is the one thing that is *not* in that surface: `Canvas` clips to its
+/// frame, and an aura specified at 208% of the box height has to be able to
+/// bleed past it or it stops being an aura and becomes a rectangle. The ticket
+/// named that escalation ahead of time — start in-canvas, add a layer only if it
+/// visibly differs — and on device it visibly differed.
 ///
 /// **The view owns no time.** There is no `Timer`, no ring buffer and no audio
 /// import here: the ~95ms-per-bar roll and the 40ms playhead tick are just
@@ -16,12 +19,7 @@ import SwiftUI
 ///
 /// State in, events out: a scrub reports a new progress through ``onScrub`` and
 /// the component never moves its own playhead.
-///
-/// It is `Animatable` over `progress` and `enhance` because a `Canvas` does not
-/// tween its own contents: without this the values would jump between frames and
-/// the handoff's `.2s` bloom and 40ms playhead tick would exist only on paper —
-/// which would also make honouring Reduce Motion vacuous.
-struct Waveform: View, Animatable {
+struct Waveform: View {
 
   /// Bar levels, `0…1`, newest last.
   var bars: [Float]
@@ -57,9 +55,149 @@ struct Waveform: View, Animatable {
   /// the next touch and the playhead jumps the moment a finger lands.
   @GestureState private var isScrubbing = false
 
-  /// The two continuous values, handed to SwiftUI to interpolate; the bar levels
-  /// are not among them because a rolling meter's bars arrive as data (one every
-  /// ~95ms) rather than travelling between two known states.
+  var body: some View {
+    ZStack {
+      // Behind the bars, and outside the clipped drawing surface so it can
+      // bleed past the box the way an aura has to.
+      bloom
+      WaveformCanvas(bars: bars, progress: progress, mode: mode, enhance: enhance)
+    }
+    .frame(maxWidth: .infinity)
+    .frame(height: WaveformGeometry.height)
+    .contentShape(Rectangle())
+    // A drag does nothing where there is no take to wind — which includes a
+    // `.scrub` that was handed an empty `bars`.
+    .gesture(scrub, isEnabled: effectiveMode == .scrub)
+    // The one reset path for the anchor, so it covers a cancelled gesture as
+    // well as a clean lift.
+    .onChange(of: isScrubbing) { _, scrubbing in
+      if !scrubbing { scrubAnchor = nil }
+    }
+    // The handoff's motion table: the bloom eases over `.2s`, the playhead
+    // ticks on `40ms`. These sit on the drawing rather than on the caller, so
+    // the component owns its own motion — which is what makes the Reduce Motion
+    // check the last word on it instead of a suggestion a caller can override.
+    .animation(bloomAnimation, value: enhance)
+    .animation(rollAnimation, value: progress)
+    .accessibilityElement()
+    .accessibilityLabel("Waveform")
+    .accessibilityValue(accessibilityValue)
+    .accessibilityAdjustableAction { direction in
+      // Adjustable only where there is a playhead to move.
+      guard effectiveMode == .scrub else { return }
+      switch direction {
+      case .increment: onScrub(steppedProgress(by: 1))
+      case .decrement: onScrub(steppedProgress(by: -1))
+      @unknown default: break
+      }
+    }
+  }
+
+  private var effectiveMode: WaveformMode {
+    WaveformGeometry.effectiveMode(mode, bars: bars)
+  }
+
+  /// The soft warm aura. A real `Ellipse` with a real `.blur`, rather than a
+  /// gradient inside the `Canvas` standing in for one: `Canvas` clips to its
+  /// frame, so an in-canvas aura specified at 208% of the box height came out
+  /// as a rectangle with hard top and bottom edges. Deliberately not a literal
+  /// reverb tail.
+  private var bloom: some View {
+    GeometryReader { proxy in
+      let resolved = WaveformGeometry.bloom(enhance: enhance, in: proxy.size)
+      Ellipse()
+        // `radial-gradient(closest-side, accent@α, transparent 72%)`, then
+        // blurred — the prototype's own two steps. A solid fill blurred by the
+        // same radius reads several times heavier than the handoff's render.
+        .fill(
+          RadialGradient(
+            stops: [
+              .init(color: DesignTokens.Palette.accent.opacity(resolved.opacity), location: 0),
+              .init(color: .clear, location: 0.72),
+            ],
+            center: .center,
+            startRadius: 0,
+            endRadius: max(resolved.size.width, resolved.size.height) / 2
+          )
+        )
+        .frame(width: resolved.size.width, height: resolved.size.height)
+        .blur(radius: resolved.blurRadius)
+        .frame(width: proxy.size.width, height: proxy.size.height)
+    }
+    .allowsHitTesting(false)
+    .accessibilityHidden(true)
+  }
+
+  // MARK: - Gesture
+
+  private var scrub: some Gesture {
+    DragGesture(minimumDistance: 1)
+      .updating($isScrubbing) { _, scrubbing, _ in scrubbing = true }
+      .onChanged { gesture in
+        let anchor = scrubAnchor ?? progress
+        if scrubAnchor == nil { scrubAnchor = anchor }
+        onScrub(
+          WaveformGeometry.scrubProgress(
+            from: anchor,
+            translation: gesture.translation.width,
+            barCount: bars.count
+          )
+        )
+      }
+  }
+
+  // MARK: - Accessibility
+
+  /// A fortieth of the take a swipe, matching the 41 stops `EnhanceDial` offers
+  /// — a bar a swipe would be 419 swipes end to end on a 35-second demo. The
+  /// scrub gesture is otherwise drag-only, which `screen-states.md` flags as a
+  /// gap for exactly this reason.
+  private func steppedProgress(by steps: Double) -> Double {
+    min(max(progress + steps / 40, 0), 1)
+  }
+
+  private var accessibilityValue: String {
+    switch effectiveMode {
+    case .resting: "No audio yet"
+    case .live: "Recording"
+    case .scrub: "\(Int((min(max(progress, 0), 1) * 100).rounded()))% through the take"
+    }
+  }
+
+  /// The playhead advances on a 40ms tick, so the roll between two ticks is
+  /// linear over exactly that — and frozen under Reduce Motion, which is the
+  /// behaviour the handoff names and this component owns for the epic.
+  private var rollAnimation: Animation? {
+    reduceMotion ? nil : .linear(duration: 0.04)
+  }
+
+  /// `.2s ease` on the bloom, instant under Reduce Motion.
+  private var bloomAnimation: Animation? {
+    reduceMotion ? nil : .easeInOut(duration: 0.2)
+  }
+}
+
+// MARK: - The drawing surface
+
+/// Every bar and the marker over them, on one `Canvas`.
+///
+/// It is `Animatable` over `progress` and `enhance` because a `Canvas` does not
+/// tween its own contents — it re-runs its closure when an input changes, and
+/// interpolates nothing. Without this the handoff's `.2s` bloom ease and 40ms
+/// playhead tick would exist only on paper, and freezing them for Reduce Motion
+/// would be freezing something that never moved.
+///
+/// The bar *levels* are deliberately not animatable: a rolling meter's bars
+/// arrive as data, one every ~95ms, rather than travelling between two known
+/// states, and an `[Float]` has no meaningful interpolation when its length
+/// changes underneath it.
+private struct WaveformCanvas: View, Animatable {
+
+  var bars: [Float]
+  var progress: Double
+  var mode: WaveformMode
+  var enhance: Double
+
   var animatableData: AnimatablePair<Double, Double> {
     get { AnimatablePair(progress, enhance) }
     set {
@@ -70,85 +208,17 @@ struct Waveform: View, Animatable {
 
   var body: some View {
     Canvas { context, size in
-      draw(in: &context, size: size)
-    }
-    .frame(maxWidth: .infinity)
-    .frame(height: WaveformGeometry.height)
-    .contentShape(Rectangle())
-    // A drag in `.resting` or `.live` does nothing: there is no take to wind.
-    .gesture(scrub, isEnabled: mode == .scrub)
-    // The one reset path for the anchor, so it covers a cancelled gesture as
-    // well as a clean lift.
-    .onChange(of: isScrubbing) { _, scrubbing in
-      if !scrubbing { scrubAnchor = nil }
-    }
-    // The handoff's motion table: the bloom eases over `.2s`, the playhead
-    // ticks every `40ms`. Under Reduce Motion both are `nil` — the values
-    // still change, they just land instead of travelling.
-    .animation(bloomAnimation, value: enhance)
-    .animation(rollAnimation, value: progress)
-    .accessibilityElement()
-    .accessibilityLabel("Waveform")
-    .accessibilityValue(accessibilityValue)
-    .accessibilityAdjustableAction { direction in
-      guard mode == .scrub else { return }
-      // One bar a swipe, the same unit the drag moves in — the scrub gesture is
-      // otherwise drag-only, which `screen-states.md` flags as a gap.
-      switch direction {
-      case .increment: onScrub(steppedProgress(by: 1))
-      case .decrement: onScrub(steppedProgress(by: -1))
-      @unknown default: break
+      let effective = WaveformGeometry.effectiveMode(mode, bars: bars)
+      let levels = WaveformGeometry.resolvedBars(bars, mode: mode)
+
+      switch effective {
+      case .resting, .live:
+        drawDistributed(levels, mode: effective, in: &context, size: size)
+      case .scrub:
+        drawScrub(levels, in: &context, size: size)
+        drawMarker(in: &context, size: size)
       }
     }
-  }
-
-  // MARK: - Drawing
-
-  private func draw(in context: inout GraphicsContext, size: CGSize) {
-    let effective = WaveformGeometry.effectiveMode(mode, bars: bars)
-    let levels = WaveformGeometry.resolvedBars(bars, mode: mode)
-
-    drawBloom(in: &context, size: size)
-
-    switch effective {
-    case .resting, .live:
-      drawDistributed(levels, mode: effective, in: &context, size: size)
-    case .scrub:
-      drawScrub(levels, in: &context, size: size)
-      drawMarker(in: &context, size: size)
-    }
-  }
-
-  /// The soft warm aura behind the bars. Drawn into the same `Canvas` as a
-  /// radial gradient rather than as a blurred `Ellipse` in a `ZStack`: a
-  /// gradient with no hard stop *is* a blurred disc, `Canvas` has no blur
-  /// filter, and keeping it here holds the handoff's "one drawing surface".
-  /// Deliberately not a literal reverb tail.
-  private func drawBloom(in context: inout GraphicsContext, size: CGSize) {
-    guard size.width > 0, size.height > 0 else { return }
-    let bloom = WaveformGeometry.bloom(enhance: enhance, in: size)
-    let rect = CGRect(
-      x: (size.width - bloom.size.width) / 2,
-      y: (size.height - bloom.size.height) / 2,
-      width: bloom.size.width,
-      height: bloom.size.height
-    )
-    // The blur radius the handoff specifies is what a gradient stop buys here:
-    // it is spent softening the falloff rather than post-processing the disc.
-    let falloff = min(0.72 + bloom.blurRadius / 100, 0.95)
-    context.fill(
-      Path(ellipseIn: rect),
-      with: .radialGradient(
-        Gradient(stops: [
-          .init(color: DesignTokens.Palette.accent.opacity(bloom.opacity), location: 0),
-          .init(color: DesignTokens.Palette.accent.opacity(bloom.opacity * 0.35), location: 0.55),
-          .init(color: .clear, location: falloff),
-        ]),
-        center: CGPoint(x: rect.midX, y: rect.midY),
-        startRadius: 0,
-        endRadius: max(rect.width, rect.height) / 2
-      )
-    )
   }
 
   /// `.resting` and `.live`: 48 bars spread across the full width, newest at the
@@ -162,6 +232,10 @@ struct Waveform: View, Animatable {
   ) {
     let width = WaveformGeometry.liveBarWidth(width: size.width)
     let played = DesignTokens.Palette.warm(0.35 + enhance * 0.65)
+    // A `.live` strip shorter than 48 is padded on the left with resting bars.
+    // They take the resting *colour* too: they are not quiet audio, they are
+    // audio that has not arrived, and warming them reads as captured silence.
+    let arrived = mode == .live ? levels.count - bars.count : levels.count
 
     for (index, level) in levels.enumerated() {
       let rect = WaveformGeometry.barRect(
@@ -172,14 +246,14 @@ struct Waveform: View, Animatable {
       )
       let path = Path(roundedRect: rect, cornerRadius: width / 2)
 
-      switch mode {
-      case .resting:
+      guard mode == .live, index >= arrived else {
         context.fill(path, with: .style(DesignTokens.Palette.barOff))
-      case .live, .scrub:
-        context.fill(path, with: .color(played))
-        if WaveformGeometry.clips(level, in: mode) {
-          drawClip(over: rect, cornerRadius: width / 2, in: &context)
-        }
+        continue
+      }
+
+      context.fill(path, with: .color(played))
+      if WaveformGeometry.clips(level, in: mode) {
+        drawClip(over: rect, cornerRadius: width / 2, in: &context)
       }
     }
   }
@@ -208,6 +282,12 @@ struct Waveform: View, Animatable {
       width: size.width
     )
     let warm = DesignTokens.Palette.warm(0.35 + enhance * 0.65)
+    // The bars occupy the middle 94% of the box so the full-height marker clears
+    // their tops, per the handoff — and per the prototype, which sizes its scrub
+    // bars the same way. `Canvas` clips, so a marker drawn past the box would be
+    // cut off instead; the bars are what give.
+    let barBox = size.height * WaveformGeometry.scrubBarHeightFraction
+    let inset = (size.height - barBox) / 2
 
     for index in window {
       let rect = WaveformGeometry.barRect(
@@ -218,8 +298,9 @@ struct Waveform: View, Animatable {
           width: size.width
         ),
         barWidth: WaveformGeometry.barWidth,
-        in: size.height
+        in: barBox
       )
+      .offsetBy(dx: 0, dy: inset)
       let path = Path(roundedRect: rect, cornerRadius: WaveformGeometry.barWidth / 2)
 
       if Double(index) <= playhead {
@@ -250,53 +331,6 @@ struct Waveform: View, Animatable {
     )
   }
 
-  // MARK: - Gesture
-
-  private var scrub: some Gesture {
-    DragGesture(minimumDistance: 1)
-      .updating($isScrubbing) { _, scrubbing, _ in scrubbing = true }
-      .onChanged { gesture in
-        let anchor = scrubAnchor ?? progress
-        if scrubAnchor == nil { scrubAnchor = anchor }
-        onScrub(
-          WaveformGeometry.scrubProgress(
-            from: anchor,
-            translation: gesture.translation.width,
-            barCount: bars.count
-          )
-        )
-      }
-  }
-
-  // MARK: - Accessibility
-
-  private func steppedProgress(by steps: Double) -> Double {
-    WaveformGeometry.scrubProgress(
-      from: progress,
-      translation: -CGFloat(steps) * WaveformGeometry.barStep,
-      barCount: bars.count
-    )
-  }
-
-  private var accessibilityValue: String {
-    switch WaveformGeometry.effectiveMode(mode, bars: bars) {
-    case .resting: "No audio yet"
-    case .live: "Recording"
-    case .scrub: "\(Int((min(max(progress, 0), 1) * 100).rounded()))% through the take"
-    }
-  }
-
-  /// The playhead advances on a 40ms tick, so the roll between two ticks is
-  /// linear over exactly that — and frozen under Reduce Motion, which is the
-  /// behaviour the handoff names and this component owns for the epic.
-  private var rollAnimation: Animation? {
-    reduceMotion ? nil : .linear(duration: 0.04)
-  }
-
-  /// `.2s ease` on the bloom, instant under Reduce Motion.
-  private var bloomAnimation: Animation? {
-    reduceMotion ? nil : .easeInOut(duration: 0.2)
-  }
 }
 
 // MARK: - Mode
@@ -366,6 +400,10 @@ enum WaveformGeometry {
 
   /// The fixed centre playhead.
   static let markerWidth: CGFloat = 4
+
+  /// How much of the box a scrub bar may fill. The remaining 6%, split between
+  /// top and bottom, is the gap the full-height marker clears them by.
+  static let scrubBarHeightFraction: CGFloat = 0.94
 
   /// The amber fades over this many bars before the marker…
   static let fadeSpan: Double = 6
@@ -618,7 +656,7 @@ private struct WaveformGallery: View {
 
   private var interactive: some View {
     VStack(spacing: DesignTokens.Spacing.hairline) {
-      Text("live — drag the waveform to scrub")
+      Text("interactive — drag the waveform to scrub")
         .font(DesignTokens.Typography.caption)
         .foregroundStyle(DesignTokens.Palette.textTertiary)
       Waveform(

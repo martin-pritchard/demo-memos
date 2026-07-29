@@ -208,7 +208,32 @@ them. And the resting line drawn for an empty take uses the distributed geometry
 in every mode, including `.scrub`: an empty take has no playhead to centre, so
 there is nothing for the fixed geometry to be fixed against.
 
-### `Waveform` is `Animatable`, because a `Canvas` does not tween (#47)
+### The bloom is a layer behind the `Canvas`, not inside it (#47)
+
+`Canvas` **clips to its frame** — verified on the simulator by filling rects
+outside the bounds and seeing nothing render. That is exactly what the scrub
+strip wants ("hard edges — the take runs full width, no mask"): `visibleRange`
+deliberately resolves a bar of slack past each edge, and the clip is what turns
+that slack into a clean edge rather than a bar drawn into the screen margin.
+
+It is the opposite of what the bloom wants. An aura specified at `124%` width
+and `208%` height of the box has over half its area outside the box, and drawn
+in-canvas it came out as a rectangle with hard top and bottom edges — a
+visible difference from `#6b`, which is the escalation the ticket named in
+advance ("start with the in-canvas gradient and only add a layer if it visibly
+differs"). So the bloom is an `Ellipse` in a `ZStack` behind the `Canvas`.
+
+Two details are load-bearing. It is filled with a radial gradient fading to
+transparent at `72%` and *then* blurred — the prototype's own two steps; a solid
+fill blurred by the same radius reads several times heavier and swamps the bars.
+And the handoff's blur radius is now used literally, where the in-canvas version
+had to spend it on a gradient stop standing in for a filter `Canvas` does not
+have.
+
+The handoff's "one drawing surface, not N views" is intact: every bar and the
+marker are still one `Canvas`. Two views, not fifty.
+
+### `WaveformCanvas` is `Animatable`, because a `Canvas` does not tween (#47)
 
 `Canvas` re-runs its closure when its inputs change; it does not interpolate
 between two drawings. Without something to interpolate, the handoff's `.2s`
@@ -216,11 +241,19 @@ bloom ease and `40ms` playhead tick would have been dead letters — and honouri
 Reduce Motion, which #44 assigns to this component for the whole epic, would
 have been vacuous: freezing an animation that never ran.
 
-`Waveform` therefore conforms to `Animatable` with an
+The private `WaveformCanvas` therefore conforms to `Animatable` with an
 `AnimatablePair<progress, enhance>`, so SwiftUI drives those two continuous
 values frame by frame and the `Canvas` redraws against interpolated numbers. The
 bar *levels* are deliberately not animatable: a rolling meter's bars arrive as
 data, one every ~95ms, rather than travelling between two known states, and an
-`[Float]` has no meaningful interpolation when its length changes. Under Reduce
-Motion both animations resolve to `nil` and every value lands rather than
-travels.
+`[Float]` has no meaningful interpolation when its length changes.
+
+**Which view holds the conformance is the whole point.** It is on the inner
+drawing view, and `Waveform` applies `.animation(_:value:)` to it from its own
+body. Put on `Waveform` itself, `animatableData` would only ever interpolate when
+a *caller's* transaction carried an animation — so the component would animate
+only by accident, and its `reduceMotion` check would have no say over a caller
+who wrapped a change in `withAnimation`. As built, the animation originates
+inside the component, which is what lets it own Reduce Motion for the epic the
+way #44 assigns: under it both animations resolve to `nil` and every value lands
+rather than travels.
