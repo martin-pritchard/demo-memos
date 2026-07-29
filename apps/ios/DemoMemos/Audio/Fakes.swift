@@ -96,6 +96,7 @@ final class FakePlayer: Playing {
   /// fake a take with a length; the real player learns this by decoding.
   var duration: TimeInterval = 0
 
+  private(set) var loadedTake: URL?
   private(set) var position: TimeInterval = 0
   /// Every seek the screen asked for, in order.
   private(set) var seekedTo: [TimeInterval] = []
@@ -104,13 +105,20 @@ final class FakePlayer: Playing {
     if let playFailure { throw playFailure }
     playCount += 1
     playedURLs.append(url)
+    if url != loadedTake { position = 0 }
+    loadedTake = url
     isPlaying = true
     // Mirrors the real player: a take parked at its end restarts from the top.
-    if position >= duration { position = 0 }
+    if duration > 0, position >= duration { position = 0 }
   }
 
-  func seek(to position: TimeInterval) {
-    let clamped = min(max(position, 0), duration)
+  func seek(to position: TimeInterval, in take: URL) {
+    if take != loadedTake {
+      loadedTake = take
+      self.position = 0
+    }
+    // Mirrors the real player: only clamp against a length we actually know.
+    let clamped = duration > 0 ? min(max(position, 0), duration) : max(position, 0)
     seekedTo.append(clamped)
     self.position = clamped
   }

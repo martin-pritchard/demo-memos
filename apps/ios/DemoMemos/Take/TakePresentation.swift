@@ -78,7 +78,16 @@ struct TakePresentation: Equatable {
   var isEnhanceEnabled: Bool { !isRecordBlocked }
 
   init(mode: TakeMode, isPlaying: Bool = false, isRecordBlocked: Bool = false) {
-    self.isRecordBlocked = isRecordBlocked
+    // Only the record flow is affected (`#15`): "the list and playback stay
+    // fully usable, so nothing already captured is held hostage to a
+    // permission". A take that exists is still playable and still shapeable
+    // with no microphone, so the blocked treatment stops at `.stopped`.
+    switch mode {
+    case .ready, .countIn, .recording:
+      self.isRecordBlocked = isRecordBlocked
+    case .stopped, .playback:
+      self.isRecordBlocked = false
+    }
     switch mode {
     case .ready:
       leading = .cancel

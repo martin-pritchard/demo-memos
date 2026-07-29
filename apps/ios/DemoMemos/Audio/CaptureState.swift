@@ -45,12 +45,19 @@ final class CaptureState {
 
   // MARK: - The playhead
 
-  /// Where the loaded take is up to, in seconds. `0` when nothing is loaded.
-  var position: TimeInterval { player.position }
+  /// Where the current take is up to, in seconds. `0` when the playhead belongs
+  /// to some other take — recording a new one leaves the player still holding
+  /// the last one's position until that take is played or scrubbed.
+  var position: TimeInterval { isPlayheadCurrent ? player.position : 0 }
 
-  /// The loaded take's length, `0` if none. Only known once a take has been
-  /// decoded — a take that has just been recorded has not been.
-  var duration: TimeInterval { player.duration }
+  /// The current take's length, `0` if not known. Only known once a take has
+  /// been decoded — a take that has just been recorded has not been, and the
+  /// length the *previous* take happened to have is not an answer.
+  var duration: TimeInterval { isPlayheadCurrent ? player.duration : 0 }
+
+  private var isPlayheadCurrent: Bool {
+    machine.latestTake != nil && player.loadedTake == machine.latestTake
+  }
 
   /// Move the playhead. Applied live if playing, remembered for the next `play`
   /// otherwise, so scrubbing a paused take is not lost.
@@ -58,7 +65,8 @@ final class CaptureState {
   /// Not an event: the machine decides *transitions*, and a scrub is not one —
   /// it changes neither the mode, the take, nor what a tap would do next.
   func scrub(to position: TimeInterval) {
-    player.seek(to: position)
+    guard let take = machine.latestTake else { return }
+    player.seek(to: position, in: take)
   }
 
   /// The Enhance dial, `0...1`. In-memory for the session — resets on relaunch,

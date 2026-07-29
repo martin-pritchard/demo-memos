@@ -131,17 +131,34 @@ final class TakeScreenModel {
     }
   }
 
-  private func advance() {
+  /// One step of the clock. Internal rather than private so the elapsed/playhead
+  /// arithmetic can be driven a tick at a time in tests, with no real `Timer`
+  /// and no simulator.
+  func advance() {
     if capture.mode == .recording {
-      if recordingStartedAt == nil { recordingStartedAt = now() }
-      elapsed = now().timeIntervalSince(recordingStartedAt ?? now())
-    } else if recordingStartedAt != nil {
-      // Capture just stopped. The recorder is the only thing that knows how long
-      // the take is until it is decoded, so snapshot it here.
+      if let started = recordingStartedAt {
+        elapsed = now().timeIntervalSince(started)
+      } else {
+        // A new take replaces the last one wholesale: its length and playhead
+        // are not yet facts, and showing the previous take's are worse than
+        // showing nothing.
+        recordingStartedAt = now()
+        elapsed = 0
+        playhead = 0
+        takeDuration = 0
+      }
+    } else if let started = recordingStartedAt {
+      // Capture just stopped. Until the take is decoded, the recorder is the
+      // only thing that knows how long it is, so snapshot it here.
       recordingStartedAt = nil
+      elapsed = now().timeIntervalSince(started)
       takeDuration = elapsed
+      // §4.4 — a stopped take opens with its playhead parked at the end.
+      playhead = elapsed
     }
 
+    // Only ever the *current* take's length; `CaptureState` returns 0 while the
+    // player's playhead still belongs to a previous one.
     if capture.duration > 0 { takeDuration = capture.duration }
     if capture.mode == .playing { playhead = capture.position }
   }

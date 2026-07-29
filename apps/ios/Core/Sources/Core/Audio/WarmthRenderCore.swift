@@ -146,7 +146,14 @@ public final class WarmthRenderCore: @unchecked Sendable {
     //    lock-free step, so a seek arriving mid-block is picked up next time
     //    rather than lost.
     let sought = pendingSeek.exchange(Self.noSeek, ordering: .relaxed)
-    if sought != Self.noSeek { cursor = sought }
+    if sought != Self.noSeek {
+      cursor = sought
+      // Clear the latch here as well as in `seek`. A seek arriving while the
+      // final block of a take is mid-render would otherwise have its clear
+      // overwritten by that block's `ended = true`, and the end poll would tear
+      // the graph down instead of playing on from the scrub point.
+      ended.store(false, ordering: .relaxed)
+    }
 
     // 1. Glide the single scalar toward the dial target, once per block. One
     //    pole with a per-block coefficient so the time constant holds whatever
