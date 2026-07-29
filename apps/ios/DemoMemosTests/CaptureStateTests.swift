@@ -114,6 +114,28 @@ struct CaptureStateTests {
     #expect(recorder.permissionRequestCount == 1, "already answered")
   }
 
+  /// The machine ignores the second tap, but the shell has to notice that it did:
+  /// both taps leave the mode at `.awaitingPermission`, so only the emitted
+  /// `.requestPermission` effect distinguishes them.
+  @Test func aSecondRecordTapWhileThePromptIsUpPromptsOnceAndRecordsOnce() async {
+    let (state, recorder, _) = Self.make(permission: .undetermined)
+    recorder.holdsPrompt = true
+
+    let firstTap = Task { await state.recordTapped() }
+    await Task.yield()  // let the first tap reach the prompt and suspend there
+    #expect(recorder.permissionRequestCount == 1, "the prompt is up")
+
+    await state.recordTapped()  // the impatient second tap
+
+    #expect(recorder.permissionRequestCount == 1, "one prompt, not two")
+
+    recorder.resumePrompt()
+    await firstTap.value
+
+    #expect(state.mode == .recording)
+    #expect(recorder.startCount == 1, "one take, not two")
+  }
+
   @Test func refusedPromptDoesNotRecord() async {
     let (state, recorder, _) = Self.make(permission: .undetermined)
     recorder.permissionOnRequest = .denied

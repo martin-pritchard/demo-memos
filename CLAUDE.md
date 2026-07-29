@@ -16,6 +16,11 @@ the finished product, not the tree. What exists today:
   `AVAudioRecorder` (#18). `AudioSession` is the only place that calls
   `setCategory`. `RecordingRepair` rebuilds the RIFF header of a take that a
   jetsam kill left unfinalised.
+- **The transport** — every record/play transition is decided by
+  `Core`'s pure `CaptureMachine.next(state, event) -> (State, [Effect])` (#35),
+  tested with `swift test` and no simulator. `CaptureState` decides nothing: it
+  holds the state, turns taps and seam callbacks into events, and performs the
+  effects it gets back.
 - **Enhance** — real on playback (#24, #22, #28, #31, #32). `AudioPlayer` runs an
   `AVAudioEngine` graph: `AVAudioSourceNode` (mono, hosting `Core`'s
   `WarmthRenderCore`) → `AVAudioUnitReverb` (stereo output bus, so the wet field
@@ -44,8 +49,12 @@ the mode, nothing drives it).
   - `DemoMemos.xcodeproj`, scheme `DemoMemos`. Targets: `DemoMemos`,
     `DemoMemosTests` (Swift Testing), `DemoMemosUITests` (XCTest).
     iOS 26.5 deployment target, Swift 5 language mode.
-  - `DemoMemos/Audio/` — the audio seams and the state machine the screen binds
-    to. Imports `AVFAudio` but no UI framework. Every seam ships both halves
+  - `DemoMemos/Audio/` — the audio seams, and the main-actor shell the screen
+    binds to. The transitions are not here: `CaptureState` performs what
+    `Core`'s `CaptureMachine` decides, and holds only what cannot be pure —
+    minting take URLs from a folder and a clock, driving the recorder and
+    player, and wording notices (`CaptureNotice+Wording.swift`). Imports
+    `AVFAudio` but no UI framework. Every seam ships both halves
     (`docs/PRINCIPLES.ios.md` #3); the fakes live in `Fakes.swift`, in the app
     target rather than the test bundle so `#Preview` can reach them.
   - `DemoMemos/Onboarding/`, `DemoMemos/Demos/`, `DemoMemos/Take/` — one folder
@@ -60,9 +69,12 @@ the mode, nothing drives it).
     replaces once the audio wiring lands.
   - `Core/` — local SPM package, scheme `Core`, Swift 6 language mode. This is
     the UI-free core (`docs/PRINCIPLES.md` #3). Today: `SampleBuffer`, the
-    `AudioProcessor` seam, and the warmth chain (`WarmthParameters`,
-    `WarmthProcessor`, `WarmthRenderCore`), plus an offline WAV harness and
-    fixtures under `Tests/`. Domain models and persistence will land here too.
+    `AudioProcessor` seam, the warmth chain (`WarmthParameters`,
+    `WarmthProcessor`, `WarmthRenderCore`), and the transport reducer under
+    `Capture/` (`CaptureMachine` plus the vocabulary it decides over —
+    `CaptureMode`, `CaptureNotice`, `StopReason`, `MicrophonePermission`), plus
+    an offline WAV harness and fixtures under `Tests/`. Domain models and
+    persistence will land here too.
     **It must not import SwiftUI or UIKit** — that boundary is what keeps it
     testable with `swift test`, no simulator.
   - `Config/` — `Shared.xcconfig` is the target's `baseConfigurationReference`

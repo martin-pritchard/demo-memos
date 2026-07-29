@@ -298,6 +298,34 @@ that `screen-states.md` lists as undesigned. The system sheet is real and
 present, which is what the assembly ticket is for; the payload is a placeholder
 and reads as one.
 
+### An effect is a request, so the app mints the take URL (#35)
+
+`CaptureMachine.Effect.startRecording` names no destination. The reducer could
+have carried one and stayed pure — thread the folder and the clock into `State`
+and the arithmetic still holds — but that puts a filesystem path and a `Date`
+into the one type whose value is that a test can build any situation by hand,
+and it makes every unrelated transition test carry a URL it does not care about.
+So the machine guarantees the *decision* to record; `CaptureState` owns the
+folder and the clock and mints the URL when it performs the effect.
+
+The same split is why `CaptureNotice` is a case rather than a string. Wording is
+presentation, so it lives in the app (`CaptureNotice+Wording.swift`), `Core`
+never holds a user-facing sentence, and `CaptureMachineTests` asserts on
+`.permissionDenied` instead of on prose that a copy change would break.
+
+### The shell reads the effect, not the resulting mode (#35)
+
+`CaptureState.recordTapped()` decides whether it owes a permission prompt by
+looking for `.requestPermission` in what the machine returned, not by checking
+whether the mode is now `.awaitingPermission`. The two are not the same signal:
+a second tap arriving while the prompt is up is correctly ignored by the machine
+and *also* leaves the mode at `.awaitingPermission`, so a mode check prompts
+twice. The machine already refuses the second take; only the effect distinguishes
+the tap that raised the prompt from the tap that found one already up. Covered by
+`aSecondRecordTapWhileThePromptIsUpPromptsOnceAndRecordsOnce`, which needs
+`FakeRecorder.holdsPrompt` to hold the first prompt suspended — the fake holds
+only that one, so a regression fails an expectation instead of deadlocking.
+
 ### A zero-length take falls back to the resting waveform (#51)
 
 `screen-states.md` lists "Record then Stop immediately" under open questions —

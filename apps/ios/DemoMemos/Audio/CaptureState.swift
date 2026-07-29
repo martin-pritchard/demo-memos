@@ -77,7 +77,11 @@ final class CaptureState {
   /// off is synchronous, so the suspension stays confined to the one place it
   /// genuinely exists — see `send(_:)`.
   func recordTapped() async {
-    guard send(.recordTapped) == .awaitingPermission else { return }
+    // The *effect*, not the resulting mode: a tap that arrives while the prompt
+    // is already up leaves the mode at `.awaitingPermission` too, so reading the
+    // mode here would prompt a second time. `.requestPermission` is emitted
+    // once, by the tap that actually raised it.
+    guard send(.recordTapped).contains(.requestPermission) else { return }
     // Asked on the first tap on record — the moment the user has shown they want
     // it — never on launch.
     send(.permissionResolved(await recorder.requestPermission()))
@@ -90,26 +94,26 @@ final class CaptureState {
   // MARK: - Reducing
 
   /// Feed one event through the machine, adopt the new state, and perform what it
-  /// asks for. Returns the resulting mode so `recordTapped()` can tell whether a
-  /// prompt is owed without re-deriving that decision here.
+  /// asks for. Returns the effects so `recordTapped()` can tell whether a prompt
+  /// is owed without re-deriving that decision here.
   ///
   /// Synchronous on purpose. `.requestPermission` is the only effect that has to
   /// await, and it is handled by the one caller that can — so the effects below
   /// stay a plain switch, and a callback arriving from `AVAudioRecorder` needs no
   /// `Task` to be applied.
   @discardableResult
-  private func send(_ event: CaptureMachine.Event) -> CaptureMode {
+  private func send(_ event: CaptureMachine.Event) -> [CaptureMachine.Effect] {
     let (next, effects) = CaptureMachine.next(machine, event)
     machine = next
     for effect in effects { perform(effect) }
-    return machine.mode
+    return effects
   }
 
   private func perform(_ effect: CaptureMachine.Effect) {
     switch effect {
     case .requestPermission:
       // Owed to `recordTapped()`, the only caller that can await it. Nothing to
-      // do here; the mode `send` returns is what tells it.
+      // do here; its presence in what `send` returns is what tells it.
       break
 
     case .startRecording:
