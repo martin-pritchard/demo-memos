@@ -57,7 +57,7 @@ final class TakeScreenModel {
 
   init(
     capture: CaptureState,
-    exporter: any Exporting = TakeExporter(),
+    exporter: any Exporting,
     now: @escaping () -> Date = Date.init
   ) {
     self.capture = capture

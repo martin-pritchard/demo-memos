@@ -51,40 +51,76 @@ nonisolated final class TakeExporter: Exporting, Sendable {
 
   private let temporary: URL
 
-  init(temporary: URL = .temporaryDirectory) {
+  /// Renders run one at a time. Two shares in flight over the same slot would
+  /// otherwise interleave writes into one file, and a share of a *different*
+  /// take would prune the slot out from under whichever render was still going.
+  private let queue = RenderQueue()
+
+  init(temporary: URL) {
     self.temporary = temporary
   }
 
+  convenience init() {
+    self.init(temporary: .temporaryDirectory)
+  }
+
   func rendered(take: URL, warmth: Double, named name: String) async throws -> URL {
-    let directory = try ShareScratch.directory(inTemporary: temporary)
+    try await queue.rendered(take: take, warmth: warmth, named: name, in: temporary)
+  }
 
-    if let hit = ShareScratch.cached(in: directory, take: take, warmth: warmth, named: name) {
-      return hit
+  // MARK: - Serialising
+
+  /// One render at a time, and no half-written file ever visible under the name
+  /// the cache looks for.
+  ///
+  /// The actor is the whole concurrency story: the body below is synchronous, so
+  /// isolation serialises renders outright rather than merely guarding a
+  /// counter. That matters because `AVAudioFile(forWriting:)` creates its file
+  /// the instant a render starts — without this, a second share of the same take
+  /// would find that empty file, call it a cache hit, and send a truncated
+  /// recording to whoever the user picked.
+  private actor RenderQueue {
+
+    func rendered(take: URL, warmth: Double, named name: String, in temporary: URL) throws -> URL {
+      let directory = try ShareScratch.directory(inTemporary: temporary)
+
+      if let hit = ShareScratch.cached(in: directory, take: take, warmth: warmth, named: name) {
+        return hit
+      }
+
+      // At most one take's worth of processed audio on disk at a time. Done
+      // before the render rather than after, so a cancelled or failed share
+      // leaves the area smaller than it found it.
+      ShareScratch.prune(in: directory, keeping: take, warmth: warmth)
+
+      let output = ShareScratch.fileURL(in: directory, take: take, warmth: warmth, named: name)
+      let slot = output.deletingLastPathComponent()
+      try FileManager.default.createDirectory(at: slot, withIntermediateDirectories: true)
+      // A demo renamed between two shares keeps its slot and changes its payload
+      // name, so the slot needs clearing too.
+      ShareScratch.pruneSlot(slot, keeping: output)
+
+      // Written under a name `cached` does not look for, then moved into place,
+      // so the payload appears complete or not at all. Still `.m4a`, because
+      // `AVAudioFile` picks its container from the path extension.
+      let partial = slot.appending(path: ".render-partial.m4a")
+      try? FileManager.default.removeItem(at: partial)
+
+      do {
+        try TakeExporter.render(take: take, warmth: warmth, to: partial)
+        try? FileManager.default.removeItem(at: output)
+        try FileManager.default.moveItem(at: partial, to: output)
+      } catch {
+        try? FileManager.default.removeItem(at: slot)
+        throw error
+      }
+      return output
     }
-
-    // At most one take's worth of processed audio on disk at a time. Done before
-    // the render rather than after, so a cancelled or failed share still leaves
-    // the area smaller than it found it.
-    ShareScratch.prune(in: directory, keeping: take, warmth: warmth)
-
-    let output = ShareScratch.fileURL(in: directory, take: take, warmth: warmth, named: name)
-    let slot = output.deletingLastPathComponent()
-    try FileManager.default.createDirectory(at: slot, withIntermediateDirectories: true)
-
-    do {
-      try Self.render(take: take, warmth: warmth, to: output)
-    } catch {
-      // A half-written file is worse than none: it would satisfy `cached` on the
-      // next tap and send silence to whoever the user picked.
-      try? FileManager.default.removeItem(at: slot)
-      throw error
-    }
-    return output
   }
 
   // MARK: - The render
 
-  private static func render(take: URL, warmth: Double, to output: URL) throws {
+  fileprivate static func render(take: URL, warmth: Double, to output: URL) throws {
     let (samples, sampleRate) = try TakeDecoder.mono(take)
     guard !samples.isEmpty, sampleRate > 0 else {
       throw AudioSession.Failure.configuration("There is nothing in this take to share")
@@ -158,9 +194,11 @@ nonisolated final class TakeExporter: Exporting, Sendable {
       case .success:
         try file.write(from: buffer)
       case .insufficientDataFromInputNode:
-        // No input node in this graph, so this cannot mean what it says. Treat it
-        // as done rather than spinning.
-        return
+        // There is no input node in this graph, so this should be unreachable.
+        // Thrown rather than treated as done: the alternative is returning a
+        // file that is short by however much was left, which then becomes a
+        // permanent cache hit for this take and dial position.
+        throw AudioSession.Failure.configuration("The render ran out of input unexpectedly")
       case .cannotDoInCurrentContext, .error:
         throw AudioSession.Failure.configuration("The render stopped before the end of the take")
       @unknown default:

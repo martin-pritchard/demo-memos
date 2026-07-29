@@ -148,12 +148,22 @@ extension TakeNotice {
   /// no longer the only thing with something to say — and `#16`'s answer to two
   /// messages is precedence, not a second channel. Lower rank wins; a tie goes
   /// to the first, which is the capture side at every call site.
+  ///
+  /// **A line beats an alert, whatever their ranks.** They are not really
+  /// competing: an alert does not occupy the slot (`#16`), so letting one win
+  /// here empties the slot rather than filling it — the losing line is dropped
+  /// and the alert does not take its place. A failed share behind a dismissed
+  /// "Recording Stopped" would say nothing at all, and then say it later, out of
+  /// context, once the capture notice cleared. The alert has already interrupted
+  /// the user; it does not also get to silence the line underneath it.
   static func precedent(_ a: TakeNotice?, _ b: TakeNotice?) -> TakeNotice? {
     switch (a, b) {
     case (nil, nil): return nil
     case (let some?, nil): return some
     case (nil, let some?): return some
-    case (let a?, let b?): return b.rank < a.rank ? b : a
+    case (let a?, let b?):
+      if a.form != b.form { return a.form == .line ? a : b }
+      return b.rank < a.rank ? b : a
     }
   }
 }

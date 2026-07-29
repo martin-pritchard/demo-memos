@@ -54,6 +54,33 @@ struct TakeShareTests {
     #expect(quiet != loud)
   }
 
+  @Test("the promise renders through the injected exporter")
+  func promiseUsesTheExporter() async throws {
+    let exporter = FakeExporter()
+    let model = makeModel(capture: .populated, exporter: exporter)
+    let shared = try #require(model.sharedTake)
+
+    _ = try await shared.exporter.rendered(
+      take: shared.take, warmth: shared.warmth, named: shared.name)
+
+    #expect(await exporter.renderCount == 1)
+  }
+
+  @Test("a render that throws reaches the caller rather than resolving to a file")
+  func exporterFailurePropagates() async throws {
+    struct Broken: Error {}
+    let exporter = FakeExporter(failure: Broken())
+    let model = makeModel(capture: .populated, exporter: exporter)
+    let shared = try #require(model.sharedTake)
+
+    // The promise's own closure turns this into `onFailure` plus a rethrow; what
+    // matters here is that the seam does not quietly hand back a URL.
+    await #expect(throws: Broken.self) {
+      try await shared.exporter.rendered(
+        take: shared.take, warmth: shared.warmth, named: shared.name)
+    }
+  }
+
   // MARK: - When the render fails
 
   @Test("a failed render puts a line in the slot, not an alert")
@@ -97,5 +124,26 @@ struct TakeShareTests {
 
     #expect(model.shareNotice == .couldNotPrepare)
     #expect(model.state.notice?.rank == .micState)
+  }
+
+  @Test("an alert does not silence the failed-share line behind it")
+  func alertDoesNotEmptyTheSlot() async throws {
+    // Capture stopped against expectation, so there is an alert *and* a take to
+    // share. An alert never occupies the slot, so if it won precedence the slot
+    // would go empty — the share failure would say nothing, then say it later
+    // out of context once the capture notice cleared.
+    let recorder = FakeRecorder()
+    let capture = CaptureState(
+      recorder: recorder,
+      player: FakePlayer(),
+      folder: FileManager.default.temporaryDirectory)
+    await capture.recordTapped()
+    recorder.simulate(.failed("the disk is full"))
+    let model = makeModel(capture: capture)
+    #expect(model.state.notice?.form == .alert)
+
+    model.shareFailed()
+
+    #expect(model.state.slot == .notice(.couldNotPrepare))
   }
 }

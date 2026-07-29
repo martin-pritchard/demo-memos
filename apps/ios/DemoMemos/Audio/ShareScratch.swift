@@ -51,6 +51,18 @@ nonisolated enum ShareScratch {
     }
   }
 
+  /// Drop everything in one slot but this payload.
+  ///
+  /// The slot is keyed on the take and the dial; the payload is named after the
+  /// demo. Rename a demo between two shares and the name changes while the slot
+  /// does not, so without this the old payload sits alongside the new one and
+  /// "one render on disk" quietly stops being true.
+  static func pruneSlot(_ slot: URL, keeping payload: URL) {
+    for entry in contents(of: slot) where entry.lastPathComponent != payload.lastPathComponent {
+      try? FileManager.default.removeItem(at: entry)
+    }
+  }
+
   /// Empty the area. Never throws — a scratch directory that was never created
   /// is the state this wants to reach, not a failure to reach it.
   static func sweep(in directory: URL) {
