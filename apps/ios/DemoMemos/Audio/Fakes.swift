@@ -156,6 +156,37 @@ final class FakePlayer: Playing {
   }
 }
 
+/// The export seam's fake half.
+///
+/// An `actor` rather than a `@MainActor` class like the other two: `Exporting`
+/// is deliberately off the main actor, so the fake has to be safe to call from
+/// wherever the system resolves a promised file. Isolation gives that for free
+/// and keeps ``renderCount`` honest under a second share arriving concurrently.
+actor FakeExporter: Exporting {
+
+  /// How many renders were actually performed — the only way to tell a cache hit
+  /// from a miss, since both return the same URL.
+  private(set) var renderCount = 0
+
+  /// Set to have `rendered` throw, to exercise the failed-share notice.
+  var failure: (any Error)?
+
+  /// What a successful render resolves to. No file is written: nothing above the
+  /// audio layer opens it.
+  var output: URL
+
+  init(output: URL = URL(filePath: "/tmp/fake-share/Demo.m4a"), failure: (any Error)? = nil) {
+    self.output = output
+    self.failure = failure
+  }
+
+  func rendered(take: URL, warmth: Double, named name: String) async throws -> URL {
+    renderCount += 1
+    if let failure { throw failure }
+    return output
+  }
+}
+
 // MARK: - Named scenarios
 
 extension CaptureState {
