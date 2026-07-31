@@ -39,7 +39,8 @@ private func makeState(
 @MainActor
 private func project(
   mode: CaptureMode = .idle,
-  hasTake: Bool = false,
+  entry: TakeEntry = .newDemo,
+  capturedThisVisit: Bool = false,
   elapsed: TimeInterval = 0,
   position: TimeInterval = 0,
   duration: TimeInterval = 0,
@@ -50,7 +51,8 @@ private func project(
 ) -> TakeScreenState {
   TakeScreenModel.project(
     mode: mode,
-    hasTake: hasTake,
+    entry: entry,
+    capturedThisVisit: capturedThisVisit,
     elapsed: elapsed,
     position: position,
     duration: duration,
@@ -71,38 +73,44 @@ private let tolerance = 1e-9
 // MARK: - project: mode mapping
 
 @MainActor
-@Suite("Projecting a capture mode onto the Take screen")
+@Suite("Projecting a capture mode onto the Take screen, entered as a new demo")
 struct TakeScreenModelProjectionModeTests {
 
   /// The whole contract table, shared by the mapping tests below.
-  private static let table: [(capture: CaptureMode, hasTake: Bool, expected: TakeMode)] = [
-    (.idle, false, .ready),
-    (.awaitingPermission, false, .ready),
-    (.recording, false, .recording),
-    (.recording, true, .recording),
-    (.idle, true, .stopped),
-    (.playing, true, .stopped),
-    (.awaitingPermission, true, .stopped),
-  ]
+  ///
+  /// Every row enters as `.newDemo`. What a row opened from the list projects as
+  /// is `TakeEntryModeTests`' contract, not this one — and `capturedThisVisit`
+  /// is what the second column means now: a take made *here*, not a file on
+  /// disk.
+  private static let table: [(capture: CaptureMode, capturedThisVisit: Bool, expected: TakeMode)] =
+    [
+      (.idle, false, .ready),
+      (.awaitingPermission, false, .ready),
+      (.recording, false, .recording),
+      (.recording, true, .recording),
+      (.idle, true, .stopped),
+      (.playing, true, .stopped),
+      (.awaitingPermission, true, .stopped),
+    ]
 
   @Test("maps every capture mode and take presence to the screen mode the table names")
   func mapsEveryCaptureModeAndTakePresenceToTheScreenModeTheTableNames() {
     for row in Self.table {
-      let state = project(mode: row.capture, hasTake: row.hasTake)
+      let state = project(mode: row.capture, capturedThisVisit: row.capturedThisVisit)
       #expect(
         state.mode == row.expected,
-        "\(row.capture) with hasTake=\(row.hasTake) should project as \(row.expected)"
+        "\(row.capture) with capturedThisVisit=\(row.capturedThisVisit) should project as \(row.expected)"
       )
     }
   }
 
-  @Test("never produces the playback mode, whatever the capture mode and take presence")
-  func neverProducesThePlaybackModeWhateverTheCaptureModeAndTakePresence() {
+  @Test("never produces the playback mode for a new demo, whatever was captured")
+  func neverProducesThePlaybackModeForANewDemoWhateverWasCaptured() {
     for row in Self.table {
-      let state = project(mode: row.capture, hasTake: row.hasTake)
+      let state = project(mode: row.capture, capturedThisVisit: row.capturedThisVisit)
       #expect(
         state.mode != .playback,
-        "\(row.capture) with hasTake=\(row.hasTake) should not project as .playback"
+        "\(row.capture) with capturedThisVisit=\(row.capturedThisVisit) should not project as .playback"
       )
     }
   }
@@ -110,18 +118,18 @@ struct TakeScreenModelProjectionModeTests {
   @Test("never produces the count-in mode, whatever the capture mode and take presence")
   func neverProducesTheCountInModeWhateverTheCaptureModeAndTakePresence() {
     for row in Self.table {
-      let state = project(mode: row.capture, hasTake: row.hasTake)
+      let state = project(mode: row.capture, capturedThisVisit: row.capturedThisVisit)
       #expect(
         isCountIn(state.mode) == false,
-        "\(row.capture) with hasTake=\(row.hasTake) should not project as .countIn"
+        "\(row.capture) with capturedThisVisit=\(row.capturedThisVisit) should not project as .countIn"
       )
     }
   }
 
   @Test("leaves the screen behind the microphone prompt unchanged")
   func leavesTheScreenBehindTheMicrophonePromptUnchanged() {
-    #expect(project(mode: .awaitingPermission, hasTake: false).mode == .ready)
-    #expect(project(mode: .awaitingPermission, hasTake: true).mode == .stopped)
+    #expect(project(mode: .awaitingPermission, capturedThisVisit: false).mode == .ready)
+    #expect(project(mode: .awaitingPermission, capturedThisVisit: true).mode == .stopped)
   }
 }
 
@@ -134,12 +142,12 @@ struct TakeScreenModelProjectionIsPlayingTests {
   @Test("reports playing only while the capture mode is playing")
   func reportsPlayingOnlyWhileTheCaptureModeIsPlaying() {
     let modes: [CaptureMode] = [.idle, .awaitingPermission, .recording, .playing]
-    for hasTake in [false, true] {
+    for capturedThisVisit in [false, true] {
       for mode in modes {
-        let state = project(mode: mode, hasTake: hasTake)
+        let state = project(mode: mode, capturedThisVisit: capturedThisVisit)
         #expect(
           state.isPlaying == (mode == .playing),
-          "\(mode) with hasTake=\(hasTake) should report isPlaying == \(mode == .playing)"
+          "\(mode) with capturedThisVisit=\(capturedThisVisit) should report isPlaying == \(mode == .playing)"
         )
       }
     }
@@ -163,7 +171,7 @@ struct TakeScreenModelProjectionProgressTests {
     ]
     for row in cases {
       let state = project(
-        mode: .playing, hasTake: true, position: row.position, duration: row.duration)
+        mode: .playing, capturedThisVisit: true, position: row.position, duration: row.duration)
       #expect(
         abs(state.progress - row.expected) < tolerance,
         "position \(row.position) of \(row.duration) should be \(row.expected)"
@@ -173,7 +181,7 @@ struct TakeScreenModelProjectionProgressTests {
 
   @Test("reports zero progress rather than NaN when the duration is zero")
   func reportsZeroProgressRatherThanNaNWhenTheDurationIsZero() {
-    let state = project(mode: .playing, hasTake: true, position: 4.2, duration: 0)
+    let state = project(mode: .playing, capturedThisVisit: true, position: 4.2, duration: 0)
     #expect(state.progress == 0)
     #expect(state.progress.isNaN == false)
     #expect(state.progress.isInfinite == false)
@@ -181,13 +189,13 @@ struct TakeScreenModelProjectionProgressTests {
 
   @Test("clamps a position past the end of the take to full progress")
   func clampsAPositionPastTheEndOfTheTakeToFullProgress() {
-    let state = project(mode: .playing, hasTake: true, position: 30, duration: 10)
+    let state = project(mode: .playing, capturedThisVisit: true, position: 30, duration: 10)
     #expect(state.progress == 1)
   }
 
   @Test("clamps a negative position to no progress")
   func clampsANegativePositionToNoProgress() {
-    let state = project(mode: .playing, hasTake: true, position: -5, duration: 10)
+    let state = project(mode: .playing, capturedThisVisit: true, position: -5, duration: 10)
     #expect(state.progress == 0)
   }
 }
@@ -202,7 +210,7 @@ struct TakeScreenModelProjectionPassThroughTests {
   func passesTheElapsedTimeDurationEnhanceAndTitleThroughUnchanged() {
     let state = project(
       mode: .recording,
-      hasTake: true,
+      capturedThisVisit: true,
       elapsed: 12.5,
       position: 3,
       duration: 42,
@@ -244,10 +252,13 @@ struct TakeScreenModelProjectionPassThroughTests {
   @Test("projects no bars, whatever the mode")
   func projectsNoBarsWhateverTheMode() {
     let modes: [CaptureMode] = [.idle, .awaitingPermission, .recording, .playing]
-    for hasTake in [false, true] {
+    for capturedThisVisit in [false, true] {
       for mode in modes {
-        let state = project(mode: mode, hasTake: hasTake, elapsed: 5, position: 2, duration: 10)
-        #expect(state.bars.isEmpty, "\(mode) with hasTake=\(hasTake) should project no bars")
+        let state = project(
+          mode: mode, capturedThisVisit: capturedThisVisit, elapsed: 5, position: 2, duration: 10)
+        #expect(
+          state.bars.isEmpty,
+          "\(mode) with capturedThisVisit=\(capturedThisVisit) should project no bars")
       }
     }
   }

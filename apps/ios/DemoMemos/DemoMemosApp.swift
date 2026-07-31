@@ -5,6 +5,7 @@
 //  Created by Martin Pritchard on 28/07/2026.
 //
 
+import Core
 import SwiftUI
 
 @main
@@ -13,19 +14,59 @@ struct DemoMemosApp: App {
   /// The one place dependencies are constructed (`docs/PRINCIPLES.md` #6).
   @State private var model = DemoMemosApp.makeModel()
 
+  /// One router for the app, holding `Core`'s pure `AppRoute`.
+  @State private var router = AppRouter()
+
   var body: some Scene {
     WindowGroup {
-      // `TakeScreen` draws its header as a `.toolbar` and brings no stack of its
-      // own, so the container owes it one. Routing between screens is #5x — this
-      // stack has exactly one thing in it.
-      NavigationStack {
-        TakeScreen(
-          state: model.binding,
-          onTransport: model.transport,
-          onNoticeAction: model.perform,
-          share: model.sharedTake)
+      switch router.route.root {
+      case .onboarding:
+        // No stack: onboarding is a one-way door with no back and no title.
+        OnboardFeatures(onContinue: router.onboardingCompleted)
+      case .demos:
+        demos
       }
     }
+  }
+
+  /// The list, and the Take screen pushed over it.
+  ///
+  /// Neither screen brings a `NavigationStack` — each says so in its own doc
+  /// comment — because the large title and the header are `.navigationTitle` and
+  /// `.toolbar`, which need a container to belong to. This is that container.
+  private var demos: some View {
+    NavigationStack(path: router.path) {
+      DemosListScreen(
+        // Still stub rows: the storage decision is #61, and inventing a domain
+        // model to feed a list would be that decision made in passing.
+        demos: DemoListItem.sample,
+        onOpen: { router.openTake(.demo(id: $0.id)) },
+        onDelete: { _ in },  // #63
+        onNewDemo: { router.openTake(.newDemo) }
+      )
+      .navigationDestination(for: TakeEntry.self) { entry in
+        TakeScreen(
+          state: model.binding,
+          onCancel: leaveTake,
+          onBack: leaveTake,
+          onDone: leaveTake,
+          onTransport: model.transport,
+          onNoticeAction: model.perform,
+          share: model.sharedTake
+        )
+        // The push is what starts a visit — the model outlives it, so nothing
+        // here builds a recorder, a player or an engine.
+        .onAppear { model.opened(as: entry) }
+      }
+    }
+  }
+
+  /// All three exits land in the same place. What each one *does to the take* —
+  /// discard it, keep an edited title, keep a moved dial — is #64, and this
+  /// ticket deliberately answers none of it.
+  private func leaveTake() {
+    model.leaveTake()
+    router.closeTake()
   }
 
   @MainActor

@@ -48,6 +48,19 @@ final class TakeScreenModel {
   /// is not decoded until it is played.
   private(set) var takeDuration: TimeInterval = 0
 
+  /// What opened the Take screen this visit — the capsule, or a row.
+  ///
+  /// The model outlives any one visit: one `CaptureState`, one recorder, one
+  /// player and one engine for the app's lifetime, because a push must not build
+  /// an audio graph. So the visit is a property of the model rather than of its
+  /// lifetime, and ``opened(as:)`` is what starts a new one.
+  private(set) var entry: TakeEntry = .newDemo
+
+  /// Whether capture finished during *this* visit. Distinct from "a take exists
+  /// on disk", which is what the mode used to be decided by and is now only a
+  /// fact about the folder.
+  private(set) var capturedThisVisit = false
+
   /// The screen's own editable copy of the title. Naming is a later ticket; this
   /// exists so a rename does not silently vanish on the next projection.
   private var editedTitle: String = "New Demo 3"
@@ -75,7 +88,8 @@ final class TakeScreenModel {
   var state: TakeScreenState {
     Self.project(
       mode: capture.mode,
-      hasTake: capture.latestTake != nil,
+      entry: entry,
+      capturedThisVisit: capturedThisVisit,
       elapsed: elapsed,
       position: playhead,
       duration: takeDuration,
@@ -115,6 +129,41 @@ final class TakeScreenModel {
   /// diffed into effects.
   var binding: Binding<TakeScreenState> {
     Binding(get: { self.state }, set: { self.apply($0) })
+  }
+
+  // MARK: - In: a visit
+
+  /// The Take screen was pushed. Starts a fresh visit: what it was opened with,
+  /// and a clock and playhead that belong to nothing yet.
+  ///
+  /// Deliberately *not* an initialiser. Constructing a model per push would
+  /// construct a recorder, a player and an `AVAudioEngine` per push — the exact
+  /// cost the one-long-lived-model rule exists to avoid.
+  func opened(as entry: TakeEntry) {
+    self.entry = entry
+    capturedThisVisit = false
+    elapsed = 0
+    playhead = 0
+    takeDuration = 0
+    recordingStartedAt = nil
+    shareNotice = nil
+  }
+
+  /// The screen is being left, by whichever exit.
+  ///
+  /// Nothing may still be running behind the list, so capture is brought to rest
+  /// through the *existing* transport paths — the same calls the buttons make.
+  /// No new `CaptureMachine` event: leaving is not a transition the machine has
+  /// to learn, it is the taps it already knows, made for the user.
+  func leaveTake() {
+    switch capture.mode {
+    case .recording:
+      Task { await capture.recordTapped() }
+    case .playing:
+      capture.playTapped()
+    case .idle, .awaitingPermission:
+      break
+    }
   }
 
   // MARK: - In: taps and edits
@@ -193,6 +242,9 @@ final class TakeScreenModel {
       // Capture just stopped. Until the take is decoded, the recorder is the
       // only thing that knows how long it is, so snapshot it here.
       recordingStartedAt = nil
+      // This visit has a take of its own now, which is what moves the screen to
+      // `.stopped` — the file on disk never does.
+      capturedThisVisit = true
       elapsed = now().timeIntervalSince(started)
       takeDuration = elapsed
       // §4.4 — a stopped take opens with its playhead parked at the end.
@@ -209,7 +261,8 @@ final class TakeScreenModel {
 
   static func project(
     mode: CaptureMode,
-    hasTake: Bool,
+    entry: TakeEntry,
+    capturedThisVisit: Bool,
     elapsed: TimeInterval,
     position: TimeInterval,
     duration: TimeInterval,
@@ -219,7 +272,7 @@ final class TakeScreenModel {
     coaching: CoachingLevel
   ) -> TakeScreenState {
     TakeScreenState(
-      mode: takeMode(for: mode, hasTake: hasTake),
+      mode: takeMode(for: mode, entry: entry, capturedThisVisit: capturedThisVisit),
       title: title,
       meta: "Today · 3:14 PM",  // placeholder: dates arrive with persistence
       bars: [],  // live levels are #17
@@ -232,16 +285,30 @@ final class TakeScreenModel {
       notice: notice)
   }
 
-  /// `.countIn` and `.playback` are never produced: the count-in is undriven
-  /// (#3) and a take opened from the list needs a list (#5x).
-  private static func takeMode(for mode: CaptureMode, hasTake: Bool) -> TakeMode {
+  /// `.countIn` is never produced: the count-in is undriven (#3).
+  ///
+  /// **What opened the screen decides the mode, not what is on disk.** The
+  /// previous rule — a take exists, so show `.stopped` — was wrong the moment
+  /// there was a way in other than "the app just launched": tapping New Demo
+  /// with any earlier recording present opened onto a take the user never made.
+  /// Only capture during *this* visit produces `.stopped`.
+  private static func takeMode(
+    for mode: CaptureMode,
+    entry: TakeEntry,
+    capturedThisVisit: Bool
+  ) -> TakeMode {
     switch mode {
     case .recording:
       return .recording
     case .idle, .awaitingPermission, .playing:
       // The prompt being up does not change the screen behind it, so
       // `.awaitingPermission` reads as whatever it was before the tap.
-      return hasTake ? .stopped : .ready
+      switch entry {
+      case .demo:
+        return .playback
+      case .newDemo:
+        return capturedThisVisit ? .stopped : .ready
+      }
     }
   }
 

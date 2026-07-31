@@ -15,8 +15,9 @@ import SwiftUI
 /// it is presentation — which dialog is up — rather than data.
 ///
 /// **No `NavigationStack` here.** The large title is a `.navigationTitle`, so the
-/// container supplies the stack; where a tapped row goes is a routing decision
-/// this ticket defers.
+/// container supplies the stack — `DemoMemosApp` does, and a tapped row pushes
+/// the Take screen onto it (#60). The rows themselves are still
+/// `DemoListItem.sample`: what a real one is made of is #61.
 struct DemosListScreen: View {
 
   let demos: [DemoListItem]
