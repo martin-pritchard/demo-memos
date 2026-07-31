@@ -77,7 +77,12 @@ struct TakePresentation: Equatable {
   /// The dial stops accepting input along with the recorder (`#15a`).
   var isEnhanceEnabled: Bool { !isRecordBlocked }
 
-  init(mode: TakeMode, isPlaying: Bool = false, isRecordBlocked: Bool = false) {
+  init(
+    mode: TakeMode,
+    isPlaying: Bool = false,
+    isRecordBlocked: Bool = false,
+    hasTake: Bool = true
+  ) {
     // Only the record flow is affected (`#15`): "the list and playback stay
     // fully usable, so nothing already captured is held hostage to a
     // permission". A take that exists is still playable and still shapeable
@@ -152,7 +157,11 @@ struct TakePresentation: Equatable {
       leading = .backToDemos
       showsShareAndDone = true
       leftRole = isPlaying ? .pause : .play
-      isLeftEnabled = true
+      // Dim when there is no audio behind the row (`#16f` again). The Demos
+      // list is still stub rows until #61, so a row can name a take that was
+      // never recorded — and Play that silently does nothing is precisely the
+      // "enabled control that does nothing" the rule exists to forbid.
+      isLeftEnabled = hasTake
       rightRole = .resume
       // Dim for the same reason as `.stopped`: #4 is not built.
       isRightEnabled = false

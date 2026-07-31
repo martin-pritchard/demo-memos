@@ -13,8 +13,9 @@ import SwiftUI
 /// nowhere else.
 ///
 /// **No `NavigationStack` here.** The header is a `.toolbar`, so the container
-/// that presents this screen supplies the stack. Which container that is — a
-/// sheet from the list, a push — is a routing decision this ticket defers.
+/// that presents this screen supplies the stack. `DemoMemosApp` does, and the
+/// container it supplies is a **push** from the Demos list (#60) — the design
+/// draws `‹ Demos` in the header, which is a stack rather than a sheet.
 struct TakeScreen: View {
 
   @Binding var state: TakeScreenState

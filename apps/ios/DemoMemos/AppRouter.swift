@@ -50,19 +50,4 @@ final class AppRouter {
   func closeTake() {
     route.closeTake()
   }
-
-  /// The binding `NavigationStack` wants. Writing through it is the system
-  /// telling us the user went back — a swipe or the header's chevron — which is
-  /// the same event as any of the three exits, so it lands in the same place.
-  var path: Binding<[TakeEntry]> {
-    Binding(
-      get: { self.route.open },
-      set: { entries in
-        if entries.isEmpty {
-          self.route.closeTake()
-        } else if let last = entries.last {
-          self.route.openTake(last)
-        }
-      })
-  }
 }

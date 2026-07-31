@@ -16,7 +16,7 @@ import SwiftUI
 ///   changed becomes an effect. Everything else in the value is projection-owned
 ///   and a write to it is ignored rather than trusted.
 ///
-/// ``project(mode:hasTake:elapsed:position:duration:enhance:title:notice:coaching:)``
+/// ``project(mode:entry:capturedThisVisit:hasTake:elapsed:position:duration:enhance:title:notice:coaching:)``
 /// is `static` and takes plain values for the same reason `TakePresentation` is
 /// a type rather than a pile of `switch`es in a view body: it is the contract,
 /// and a contract that lives in a `body` cannot be tested without a simulator
@@ -90,6 +90,7 @@ final class TakeScreenModel {
       mode: capture.mode,
       entry: entry,
       capturedThisVisit: capturedThisVisit,
+      hasTake: capture.latestTake != nil,
       elapsed: elapsed,
       position: playhead,
       duration: takeDuration,
@@ -263,6 +264,10 @@ final class TakeScreenModel {
     mode: CaptureMode,
     entry: TakeEntry,
     capturedThisVisit: Bool,
+    /// Whether audio exists for this take. Decides only whether Play can act —
+    /// never the mode, which is what ``takeMode(for:entry:capturedThisVisit:)``
+    /// exists to keep separate.
+    hasTake: Bool = true,
     elapsed: TimeInterval,
     position: TimeInterval,
     duration: TimeInterval,
@@ -281,6 +286,7 @@ final class TakeScreenModel {
       progress: progress(position: position, duration: duration),
       enhance: enhance,
       isPlaying: mode == .playing,
+      hasTake: hasTake,
       coaching: coaching,
       notice: notice)
   }

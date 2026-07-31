@@ -35,7 +35,7 @@ struct DemoMemosApp: App {
   /// comment — because the large title and the header are `.navigationTitle` and
   /// `.toolbar`, which need a container to belong to. This is that container.
   private var demos: some View {
-    NavigationStack(path: router.path) {
+    NavigationStack(path: takePath) {
       DemosListScreen(
         // Still stub rows: the storage decision is #61, and inventing a domain
         // model to feed a list would be that decision made in passing.
@@ -57,8 +57,32 @@ struct DemoMemosApp: App {
         // The push is what starts a visit — the model outlives it, so nothing
         // here builds a recorder, a player or an engine.
         .onAppear { model.opened(as: entry) }
+        // The design gives the Take screen its own leading control in every
+        // mode — Cancel while capturing, `‹ Demos` on playback (§2's header
+        // table). The system's chevron would be a second one, and it pops
+        // without going through `leaveTake`, so capture would keep running
+        // behind the list. Hiding it also takes the edge-swipe with it.
+        .navigationBarBackButtonHidden(true)
       }
     }
+  }
+
+  /// The path `NavigationStack` writes through.
+  ///
+  /// Emptying it is a pop by any route, so it goes through the same
+  /// ``leaveTake()`` the three header controls do — the router alone cannot do
+  /// this, because quieting capture needs the model and routing does not know
+  /// about it.
+  private var takePath: Binding<[TakeEntry]> {
+    Binding(
+      get: { router.route.open },
+      set: { entries in
+        if entries.isEmpty {
+          leaveTake()
+        } else if let last = entries.last {
+          router.openTake(last)
+        }
+      })
   }
 
   /// All three exits land in the same place. What each one *does to the take* —
