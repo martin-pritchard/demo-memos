@@ -406,3 +406,70 @@ two values look like a contradiction until you know which layer owns which.
 Wiring `TakeScreen` is what exposed this: the stub `TakeScreenState.enhance`
 already defaulted to 0.5, so the assembled screen had always drawn the design's
 default while the machine behind it sat at 0.
+
+### The share sheet opens before the file exists (#55)
+
+Design turn `#17` is FINAL that sharing raises the sheet on the tap and hands it
+a *promised* file rather than making the user watch a render first: what they
+want — send this to Dan — is knowable while the render is still running, so
+intent and work go in parallel. `SharedTake` is a `Transferable` whose
+`FileRepresentation` is async, which is the `UIActivityItemProvider` the design
+names in the form `ShareLink` accepts.
+
+Three consequences worth writing down, because each looks like an omission:
+
+- **The progress indicator is the system's, not ours.** `#17b` draws a counting
+  subtitle and a 3px bar on the sheet's *header row*. That header belongs to
+  `UIActivityViewController`, and the handoff's own rule is "use the system
+  sheet, do not build this". So the render's progress appears where iOS puts it,
+  once a destination is chosen. `#17e`'s ~500 ms deadline before showing
+  anything is the platform's business for the same reason. The only way to draw
+  the design's bar is a bespoke sheet, which the handoff forbids — so the
+  decision in `#17` is honoured and the pixel is not.
+- **Try Again clears the line; it cannot re-raise the sheet.** `ShareLink` owns
+  its own presentation and nothing in SwiftUI asks it to open, so the capsule
+  puts the user one tap from the Share button rather than reopening for them.
+  Re-presenting would mean dropping `ShareLink` for a hand-rolled
+  `UIViewControllerRepresentable` over `UIActivityViewController`.
+- **`#17e`'s long-render row is not implemented.** It wants the sheet to close on
+  the pick and the progress to move to the notice slot as a ring. Once a
+  destination is chosen the system owns that wait and we cannot dismiss out from
+  under it. Renders run many times faster than realtime, so this bites only on a
+  very long take.
+
+### A rendered share is cached in `tmp/`, and that is not persistence (#55)
+
+`#17e`'s first row — "Enhance unchanged since the last share: sheet opens
+immediately, no ring, no bar" — only works if the last render is still there.
+So `ShareScratch` keeps one slot per `(take, warmth)` pair: sharing the same
+take twice without touching the dial is free, and moving the dial prunes its
+predecessor so at most one take's worth of processed audio is ever on disk.
+
+This is deliberately not the persistence the boundaries reserve for a ticket of
+its own. Nothing is written to `Documents/`, nothing is indexed, nothing carries
+a schema, and the whole area is swept at launch before anything can read a stale
+render as a cache hit. The dry WAV remains the recording; this is a copy with a
+lifetime measured in taps.
+
+The upstream lever `#17` points at — rendering on save, so sharing is a file
+copy — stays open as design question `#13d`. It would retire this UI rather than
+extend it, which is why it is not being decided in passing here.
+
+### The offline render reuses the playback graph rather than a `Core` pass (#55)
+
+Enhance is two things: the warmth DSP, which is pure Swift in `Core`, and a
+`.mediumHall` `AVAudioUnitReverb` whose stereo output is what widens the wet
+field (#31). A pure `Core` render would produce a file missing the second half —
+audibly not the thing the user just listened to.
+
+So `TakeExporter` builds the same graph `AudioPlayer` builds and pulls it under
+`enableManualRenderingMode(.offline, …)`: rung 3 of the `ios-audio` ladder, no
+new DSP, and the same `warmthParameters(w).reverbWetMix` curve on both paths.
+Manual rendering is not connected to a device, so this never activates
+`AudioSession` — a share does not interrupt playback and playback does not
+colour a render.
+
+Two details that are easy to get wrong later: the render runs for the take's
+length *plus* a reverb tail, because stopping at the last sample chops the decay
+mid-air; and when the dial is at 0 the reverb is bypassed, so no tail is
+appended rather than three seconds of silence on the end of every dry share.

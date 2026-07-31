@@ -11,7 +11,7 @@ import SwiftUI
 struct DemoMemosApp: App {
 
   /// The one place dependencies are constructed (`docs/PRINCIPLES.md` #6).
-  @State private var model = TakeScreenModel(capture: DemoMemosApp.makeCaptureState())
+  @State private var model = DemoMemosApp.makeModel()
 
   var body: some Scene {
     WindowGroup {
@@ -22,9 +22,24 @@ struct DemoMemosApp: App {
         TakeScreen(
           state: model.binding,
           onTransport: model.transport,
-          onNoticeAction: model.perform)
+          onNoticeAction: model.perform,
+          share: model.sharedTake)
       }
     }
+  }
+
+  @MainActor
+  private static func makeModel() -> TakeScreenModel {
+    // A share that was interrupted — the app killed, the phone out of space —
+    // leaves a rendered copy in `tmp/`. Nothing processed is meant to survive a
+    // launch, so the area is emptied before anything can read a stale render as
+    // a cache hit. Cheap: it is one directory listing on a folder that is
+    // usually empty.
+    if let scratch = try? ShareScratch.directory(inTemporary: .temporaryDirectory) {
+      ShareScratch.sweep(in: scratch)
+    }
+
+    return TakeScreenModel(capture: makeCaptureState(), exporter: TakeExporter())
   }
 
   @MainActor

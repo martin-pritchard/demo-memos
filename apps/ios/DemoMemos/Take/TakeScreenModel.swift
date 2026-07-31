@@ -26,7 +26,13 @@ import SwiftUI
 final class TakeScreenModel {
 
   private let capture: CaptureState
+  private let exporter: any Exporting
   private let now: () -> Date
+
+  /// Set when a share's render fails, cleared when the user asks to try again.
+  /// A second notice source, which is why the projection now has to resolve
+  /// precedence rather than just forward the capture layer's (`#16`).
+  private(set) var shareNotice: TakeNotice?
 
   /// Time captured so far, counted from a stamp rather than accumulated per
   /// tick — a dropped tick then costs nothing.
@@ -49,8 +55,13 @@ final class TakeScreenModel {
   private var recordingStartedAt: Date?
   @ObservationIgnored private var tick: Timer?
 
-  init(capture: CaptureState, now: @escaping () -> Date = Date.init) {
+  init(
+    capture: CaptureState,
+    exporter: any Exporting,
+    now: @escaping () -> Date = Date.init
+  ) {
     self.capture = capture
+    self.exporter = exporter
     self.now = now
     startTick()
   }
@@ -70,8 +81,34 @@ final class TakeScreenModel {
       duration: takeDuration,
       enhance: capture.warmth,
       title: editedTitle,
-      notice: capture.captureNotice.flatMap(TakeNotice.init),
+      notice: TakeNotice.precedent(capture.captureNotice.flatMap(TakeNotice.init), shareNotice),
       coaching: .clear)  // live levels are #17; nothing measures input yet
+  }
+
+  /// The promise the header's Share button hands to the system sheet, or nil
+  /// when there is no take to share — which dims the control, per the one
+  /// transport rule (`#16f`): never enabled-and-inert.
+  var sharedTake: SharedTake? {
+    guard let take = capture.latestTake else { return nil }
+    return SharedTake(
+      take: take,
+      warmth: capture.warmth,
+      name: editedTitle,
+      exporter: exporter,
+      onFailure: { [weak self] in
+        // The render resolves wherever the system chose to resolve it; the
+        // notice is screen state, so it hops back.
+        guard let self else { return }
+        Task { @MainActor in self.shareFailed() }
+      })
+  }
+
+  /// The promised file could not be rendered.
+  ///
+  /// Separate from the closure above so the resulting screen state is reachable
+  /// without a share sheet, an exporter or a thread hop.
+  func shareFailed() {
+    shareNotice = .couldNotPrepare
   }
 
   /// The binding `TakeScreen` writes through. Reads the projection; writes are
@@ -112,12 +149,17 @@ final class TakeScreenModel {
     }
   }
 
-  /// The notice's capsule. Only reachable from a denied microphone today.
+  /// The notice's capsule.
   func perform(_ action: TakeNoticeAction) {
     switch action {
     case .openSettings:
       guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
       UIApplication.shared.open(url)
+    case .tryAgain:
+      // Clears the line so Share is the obvious next move. It cannot re-raise
+      // the sheet itself: `ShareLink` owns its own presentation, and nothing in
+      // SwiftUI asks it to open. See `DECISIONS.md`.
+      shareNotice = nil
     }
   }
 

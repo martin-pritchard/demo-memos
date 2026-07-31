@@ -104,7 +104,7 @@ struct TakePlayheadTests {
   func parksAFreshlyStoppedTakesPlayheadAtItsEnd() async {
     let clock = Clock()
     let (state, _, _) = Self.make(clock: clock)
-    let model = TakeScreenModel(capture: state, now: clock.now)
+    let model = TakeScreenModel(capture: state, exporter: FakeExporter(), now: clock.now)
 
     await state.recordTapped()
     model.advance()
@@ -122,7 +122,7 @@ struct TakePlayheadTests {
   func clearsThePreviousTakesLengthAndPlayheadWhenANewOneStarts() async {
     let clock = Clock()
     let (state, _, _) = Self.make(clock: clock)
-    let model = TakeScreenModel(capture: state, now: clock.now)
+    let model = TakeScreenModel(capture: state, exporter: FakeExporter(), now: clock.now)
 
     await state.recordTapped()
     model.advance()

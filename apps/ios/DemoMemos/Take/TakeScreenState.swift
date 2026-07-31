@@ -187,6 +187,16 @@ extension TakeScreenState {
     duration: Bars.takeDuration,
     notice: TakeNotice(.stopped(.failed("the disk is full")))
   )
+
+  /// The render behind a share failed (`#17e`). A line in the slot with Try
+  /// Again — never an alert, because nothing was lost and the take still plays.
+  static let shareFailed = TakeScreenState(
+    mode: .stopped,
+    bars: Bars.take,
+    duration: Bars.takeDuration,
+    progress: 1,
+    notice: .couldNotPrepare
+  )
 }
 
 /// Fixture bar levels. The screen owns no time, so a state is just an array —

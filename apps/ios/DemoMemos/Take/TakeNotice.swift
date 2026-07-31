@@ -23,6 +23,8 @@ enum TakeNoticeForm: Equatable {
 /// choice rather than a placeholder waiting to be filled in.
 enum TakeNoticeAction: Equatable {
   case openSettings
+  /// Re-attempt a share whose render failed (`#17e`).
+  case tryAgain
 }
 
 /// Precedence for the one slot, lowest rank first (`#16`).
@@ -119,6 +121,50 @@ struct TakeNotice: Equatable {
   private init(alert title: String, message: String) {
     self.init(
       line: message, sub: nil, action: nil, form: .alert, rank: .micState, alertTitle: title)
+  }
+}
+
+// MARK: - Sharing
+
+extension TakeNotice {
+
+  /// The share render failed (`#17e`, last row but one).
+  ///
+  /// A line in the slot, never an alert, and that is the whole point of it:
+  /// nothing was lost. The dry take is untouched, playback still works, and the
+  /// rest of the library is fine — so this is the same channel and the same
+  /// shape as a playback failure, and it is not dramatised into an interrupt.
+  static let couldNotPrepare = TakeNotice(
+    line: "Couldn’t prepare this demo",
+    sub: nil,
+    action: .tryAgain,
+    form: .line,
+    rank: .playbackFailure,
+    alertTitle: nil)
+
+  /// The one of two notices that gets the slot.
+  ///
+  /// Sharing gave the screen a second source of notices — the capture layer is
+  /// no longer the only thing with something to say — and `#16`'s answer to two
+  /// messages is precedence, not a second channel. Lower rank wins; a tie goes
+  /// to the first, which is the capture side at every call site.
+  ///
+  /// **A line beats an alert, whatever their ranks.** They are not really
+  /// competing: an alert does not occupy the slot (`#16`), so letting one win
+  /// here empties the slot rather than filling it — the losing line is dropped
+  /// and the alert does not take its place. A failed share behind a dismissed
+  /// "Recording Stopped" would say nothing at all, and then say it later, out of
+  /// context, once the capture notice cleared. The alert has already interrupted
+  /// the user; it does not also get to silence the line underneath it.
+  static func precedent(_ a: TakeNotice?, _ b: TakeNotice?) -> TakeNotice? {
+    switch (a, b) {
+    case (nil, nil): return nil
+    case (let some?, nil): return some
+    case (nil, let some?): return some
+    case (let a?, let b?):
+      if a.form != b.form { return a.form == .line ? a : b }
+      return b.rank < a.rank ? b : a
+    }
   }
 }
 
