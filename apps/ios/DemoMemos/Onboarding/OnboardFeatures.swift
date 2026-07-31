@@ -3,10 +3,10 @@ import SwiftUI
 /// First launch, once: what the app is, in three lines and a button.
 ///
 /// The iOS "What's New" pattern — one page, no pagination, no skip, no back,
-/// which is why there is no `TabView` and no dismiss control here. The
-/// `hasOnboarded` flag that decides whether it appears at all is persisted
-/// state, and persistence is a decision this ticket defers; the screen reports
-/// Continue and nothing more.
+/// which is why there is no `TabView` and no dismiss control here. The screen
+/// still reports Continue and nothing more: the `hasOnboarded` flag that decides
+/// whether it appears at all is written by `AppRouter` at the composition root
+/// (#60), so this view neither reads nor writes it.
 ///
 /// The only screen in the bundle with no dark-mode render — the handoff's own
 /// "try next" note asks for one. It has a dark preview below because every token

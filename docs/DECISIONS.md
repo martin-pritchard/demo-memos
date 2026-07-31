@@ -288,6 +288,59 @@ while tapping a row opens the same screen at `playback` with a `‹ Demos` back
 control. A stack baked into the screen would settle that here, in the wrong
 ticket. Root navigation and the `hasOnboarded` flag are #51's named follow-ups.
 
+### The route is a value in `Core`, not `@State` on the app (#60)
+
+`AppRoute` holds the root and an at-most-one-deep path, and every transition is
+a mutating method on it. `AppRouter` at the composition root stores it and
+performs routing's single effect — writing `hasOnboarded`.
+
+It is deliberately **not** a `CaptureMachine`-style reducer. That shape earns
+itself when one event fans out into recorder and player work that must be
+performed elsewhere; routing has one effect and one performer. What the two do
+share is the reason for living in `Core`: "where can you get to from here" is
+decided under `swift test` with no simulator.
+
+`hasOnboarded` is written on Continue rather than on arrival, which is what
+makes force-quitting mid-onboarding show it again — the flag records that the
+user finished, not that they saw it.
+
+### The Take screen is pushed for both entries — and the design may want a sheet for one (#60)
+
+**Built:** both `New Demo` and a tapped row push `TakeScreen` onto the Demos
+list's `NavigationStack`.
+
+**Unresolved, and flagged rather than settled.** #51's entry above reads the
+handoff as wanting *two* containers — `New Demo` as a modal from the bottom,
+a row as a push — and §2's header table supports it: the record flow's leading
+control is **Cancel**, which is a sheet idiom, while playback's is **`‹ Demos`**,
+which is a stack one. #60's spec read only the playback row, concluded "a push,
+not a sheet", and was approved that way; the build followed the spec.
+
+So the two entries in this file disagree, and this one is the newer but not
+necessarily the righter. Whoever picks this up should decide deliberately —
+either the modal is restored for `.newDemo`, or the design's Cancel is
+reinterpreted as a stack affordance and #51's entry amended to say so. It is not
+settled by having been built.
+
+The system back button is hidden on the pushed screen regardless: the design
+gives the Take screen its own leading control in every mode, a system chevron
+beside it would be a second one, and a system pop bypasses the exit that quiets
+capture.
+
+### A visit is started by the push, not by constructing a model (#60)
+
+One `TakeScreenModel` and one `CaptureState` live for the app's lifetime, so a
+push must not build a recorder, a player or an `AVAudioEngine`. `opened(as:)` is
+therefore a method rather than an initialiser, and what a visit *is* — the entry
+it was opened with, and whether capture happened during it — is model state.
+
+That distinction is load-bearing: the screen's mode used to be decided by
+`latestTake != nil`, a fact about the folder. With more than one way in, that was
+wrong — tapping New Demo with any earlier recording present opened onto
+`.stopped`, a take the user never made. **What opened the screen decides the
+mode; what is on disk decides only whether Play can act.** Both facts are needed
+and they are not the same fact.
+
 ### Share is wired to the take's name, not a file (#51)
 
 Both `ShareLink`s — the list's swipe action and the Take screen's header — share

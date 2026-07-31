@@ -38,6 +38,14 @@ struct TakeScreenState: Equatable {
 
   var isPlaying: Bool = false
 
+  /// Whether there is actually audio behind this take.
+  ///
+  /// Distinct from the mode: a row opened from the list is in `.playback`
+  /// whether or not its file exists, and while the list is stub rows (#61) it
+  /// often does not. Only the transport reads this — it is what keeps Play from
+  /// being enabled over nothing.
+  var hasTake: Bool = true
+
   /// What the live meter has to say about the input. Only rendered while
   /// recording — `TakePresentation.showsCoaching` is the gate.
   var coaching: CoachingLevel = .clear
@@ -56,7 +64,8 @@ struct TakeScreenState: Equatable {
 
   /// The §4 table, resolved for this state.
   var presentation: TakePresentation {
-    TakePresentation(mode: mode, isPlaying: isPlaying, isRecordBlocked: isRecordBlocked)
+    TakePresentation(
+      mode: mode, isPlaying: isPlaying, isRecordBlocked: isRecordBlocked, hasTake: hasTake)
   }
 
   /// A mic-state notice is the one thing that puts the recorder out of action.
